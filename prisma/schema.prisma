@@ -2,10 +2,13 @@ generator client {
   provider = "prisma-client-js"
 }
 
-// NOTE: sqlite for local/staging verification because Docker Desktop's engine
-// would not come up in this environment (see README "Known deviations").
-// Swap provider back to "postgresql" once Docker or Supabase is available -
-// the only other change needed is the two String[] fields below (see note).
+// SQLite is the approved production datasource (confirmed by management) -
+// not a temporary deviation. Shared/multi-user access (CTO + PR both hitting
+// /admin against the same live data) is served via Turso (hosted libSQL,
+// still SQLite dialect) through the driver adapter in lib/prisma.ts. The
+// `url` below is only used by the Prisma CLI (migrate/studio) and by the
+// adapter's local-file fallback when TURSO_DATABASE_URL is unset - see
+// README ".env 環境變數說明".
 datasource db {
   provider = "sqlite"
   url      = env("DATABASE_URL")

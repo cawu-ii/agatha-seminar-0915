@@ -3,8 +3,7 @@
 ![Next.js](https://img.shields.io/badge/Next.js-000000?logo=nextdotjs&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
 ![Prisma](https://img.shields.io/badge/Prisma-2D3748?logo=prisma&logoColor=white)
-![SQLite](https://img.shields.io/badge/DB_(local)-SQLite-003B57?logo=sqlite&logoColor=white)
-![Postgres](https://img.shields.io/badge/DB_(production_target)-Supabase_Postgres-3FCF8E?logo=supabase&logoColor=white)
+![SQLite](https://img.shields.io/badge/DB-SQLite_(via_Turso)-003B57?logo=sqlite&logoColor=white)
 ![Status](https://img.shields.io/badge/status-本機／staging_驗證通過-brightgreen)
 
 > 對應交接文件《Agatha_Seminar_Landing_Page報名系統與追蹤_CTO交接文件_0729》，實作文件 §0 指派予 CTO／工程之範圍：**報名頁與自建後台、GTM 埋設、GA4／Meta 像素整合、交易信 API 串接與網域驗證、感謝頁、UTM 落庫、後台權限開放予公關**。
@@ -25,7 +24,7 @@
 - [測試步驟](#測試步驟)
 - [`.env` 環境變數說明](#env-環境變數說明責任分工對照文件-011)
 - [`/admin` 操作說明](#admin-操作說明)
-- [已知偏離計畫事項](#已知偏離計畫事項)
+- [資料庫架構：SQLite（本機檔案／Turso 共用）](#資料庫架構sqlite本機檔案turso-共用)
 - [§12 測試表對照](#12-測試表對照已完成測項與待驗證測項)
 - [待確認事項](#待確認事項可轉知-lindy公關)
 - [後續規劃](#後續規劃對照文件-10-關鍵時程)
@@ -85,7 +84,7 @@ flowchart TD
   U --> LP["🔵 CTO · app/seminar/0915<br/>落地頁：UTM 擷取、同意橫幅、表單"]
   LP -->|"同意後始注入"| GTM["🟠 Lindy · GTM 容器<br/>內含 GA4"]:::lindy
   LP -->|"POST 表單 + UTM + idempotencyKey"| API["🔵 CTO · /api/register<br/>驗證 → insert → 回傳 event_id"]
-  API --> DB[("🔵 CTO · 資料庫<br/>SQLite（本機）／Supabase（production）")]
+  API --> DB[("🔵 CTO · 資料庫<br/>SQLite；本機檔案或 Turso（跨環境共用）")]
   API -->|"after() 背景工作，不阻塞回應"| MAIL["🟣 公司 · 交易信 Provider<br/>Resend／無憑證則 log-only"]:::company
   API -->|"after() 背景工作，不阻塞回應"| META["🩷 公關 · Meta CAPI<br/>無憑證則 no-op"]:::pr
   API -->|"200 + event_id（不含 PII）"| THX["🔵 CTO · /thanks<br/>加入行事曆、觸發 registration_submit"]
@@ -134,7 +133,6 @@ seminar_apply/
 ├─ prisma/schema.prisma                         # Registration model
 ├─ scripts/export-registrations.ts              # 🔵 CTO 專用 CSV 匯出腳本
 ├─ middleware.ts                                # 保護 /admin、/api/admin
-├─ docker-compose.yml                           # 本機 Postgres（目前因 Docker 環境問題暫未使用，詳見下方）
 ├─ openspec/changes/add-seminar-registration-system/  # 規格文件（proposal/design/specs/tasks）
 ├─ .env / .env.example
 ├─ README.md                                    # 本檔
@@ -161,7 +159,8 @@ npm run dev              # http://localhost:3000
 
 | 變數 | 用途 | 負責提供 | 未設定時之行為 |
 |---|---|---|---|
-| `DATABASE_URL` | 資料庫連線字串 | 🔵 CTO | 詳見下方「已知偏離計畫事項」 |
+| `DATABASE_URL` | 本機 SQLite 檔案路徑，供 Prisma CLI（migrate/studio）使用 | 🔵 CTO | 詳見下方「資料庫架構」 |
+| `TURSO_DATABASE_URL` / `TURSO_AUTH_TOKEN` | 共用資料庫連線（CTO＋公關讀寫同一份即時資料） | 🔵 CTO（於 [turso.tech](https://turso.tech) 建立） | 未設定：應用程式自動回退為本機 SQLite 檔案，僅該台機器可見 |
 | `ADMIN_PASSWORD` | `/admin` 共用密碼 | 🔵 CTO 設定後轉交 🩷 公關 | 未設定則無法登入後台 |
 | `SESSION_SECRET` | 後台登入 cookie 簽章密鑰 | 🔵 CTO（隨機字串即可） | 未設定將直接報錯，刻意避免以弱密鑰悄悄運作 |
 | `EXPORT_TOKEN` | CTO 專用匯出端點之權杖，**刻意與 `ADMIN_PASSWORD` 分開** | 🔵 CTO 自行保管，不轉交公關 | 未設定則無法使用 `/api/export` |
@@ -190,18 +189,25 @@ npm run export:registrations   # 產出 exports/registrations-YYYY-MM-DD.csv（�
 
 ---
 
-## 已知偏離計畫事項
+## 資料庫架構：SQLite（本機檔案／Turso 共用）
 
-原計畫為本機以 Docker 執行 Postgres（production 目標為 Supabase）。實測時本機 Docker Desktop 引擎無法啟動（`docker info` 持續無回應，且為需互動確認之 GUI 啟動流程，非命令列可排除），為避免延誤 8/5 交付期限，**本機／staging 驗證改採 SQLite**（`prisma/schema.prisma` 之 `datasource` provider、`sessions`／`consult` 兩欄位由 Postgres 的 `String[]` 改為 JSON 字串）。
+原計畫為本機以 Docker 執行 Postgres（production 目標為 Supabase）；因本機 Docker Desktop 引擎當時無法啟動，先改採 SQLite 應急。**此事後已由主管確認：SQLite 即為正式採用之資料庫，非暫時性偏離，不再規劃切換至 Postgres／Supabase。**
 
-正式上線前應完成事項：
+SQLite 本身是單機檔案，多人（CTO＋公關）要透過 `/admin` 看到同一份即時資料，需要一個大家都連得到的共用資料庫，而非各自機器上獨立的檔案。作法：
 
-1. 將 `prisma/schema.prisma` 之 `datasource provider` 改回 `"postgresql"`，`sessions`／`consult` 改回 `String[]`。
-2. `DATABASE_URL` 指向 Supabase 連線字串。
-3. 執行 `npx prisma migrate deploy`。
-4. 以一筆測試資料重新執行 §12 測試表確認無誤。
+- 採用 **[Turso](https://turso.tech)**（雲端託管 libSQL，語法與行為皆為 SQLite 方言，符合「用 SQLite」之決策，程式碼／schema 幾乎不需改動）。
+- `lib/prisma.ts` 透過 `@prisma/adapter-libsql` 連線：設定 `TURSO_DATABASE_URL`／`TURSO_AUTH_TOKEN` 後，所有環境（本機、部署後之 staging／production）讀寫同一份 Turso 資料庫；**未設定時自動回退為本機檔案** `prisma/dev.db`，本機獨立開發不需要 Turso 帳號。
+- `prisma/schema.prisma` 的 `datasource` 仍是 `provider = "sqlite"`；`DATABASE_URL`（本機檔案路徑）僅供 Prisma CLI（`migrate`／`studio`）使用，實際應用程式連線一律經由上述 adapter。
 
-`docker-compose.yml` 仍保留於專案中——若後續 Docker 恢復正常，亦可直接改用本機 Postgres 而無需等待 Supabase 帳號。
+### 設定共用資料庫（Turso）步驟
+
+1. 至 [turso.tech](https://turso.tech) 註冊帳號（可用 GitHub 帳號登入），於網頁後台建立一個新資料庫。
+2. 從資料庫詳情頁複製連線網址（格式類似 `libsql://<db-name>-<org>.turso.io`），填入 `.env` 的 `TURSO_DATABASE_URL`。
+3. 於同一頁面建立一組 Auth Token，填入 `TURSO_AUTH_TOKEN`。
+4. 把既有的資料表結構同步過去：於 Turso 網頁後台的 SQL 主控台，貼上並執行 `prisma/migrations/20260804033703_init/migration.sql` 的內容（`prisma migrate deploy` 目前不直接支援 libSQL/Turso 連線，需手動套用一次）。
+5. 重啟服務，`/admin` 即改讀寫 Turso 上的共用資料。
+
+**這步驟需要你自行完成**（建立帳號、建立資料庫、產生 Token 皆須本人操作，非工程可代為執行）；上述設定就緒後告知，我可協助驗證連線與資料寫入是否正常。
 
 ---
 
@@ -245,7 +251,7 @@ npm run export:registrations   # 產出 exports/registrations-YYYY-MM-DD.csv（�
 
 ## 後續規劃（對照文件 §10 關鍵時程）
 
-- **8/10**：正式上線前，完成上述「已知偏離計畫事項」之 Postgres／Supabase 切換。
+- **8/10 前**：正式上線前，完成上述「資料庫架構」之 Turso 帳號／資料庫建立與連線設定，讓 CTO＋公關讀寫同一份即時資料。
 - **8/11**：開放報名並投放廣告，此時 GTM／GA4／Meta 像素／交易信憑證須全數補齊至 `.env`。
 - **9/7**：官網首頁上線（同網域並存，不在本次交付範圍）。
 - **9/12 前**：公關以 Excel 報名名單寄送行前通知——使用 `npm run export:registrations` 產出之 CSV。
@@ -270,7 +276,9 @@ npm run export:registrations   # 產出 exports/registrations-YYYY-MM-DD.csv（�
 | 獨立 QA 測試（`qa/test-log-2026-08-04.md`） | `done` | 20 Pass／3 Blocked／0 Fail，未發現程式碼缺陷 |
 | 測試資料清理 | `done` | QA 期間產生之 5 筆可辨識測試資料已於資料庫層清除，目前 0 筆 |
 | 🟠🩷🟣 追蹤／寄信／Ragic 整合程式碼 | `ongoing` | 程式碼已完成且安全 no-op，待正式憑證填入 `.env` 方可正式啟用 |
-| Docker → 本機 Postgres 切換 | `ongoing` | `docker-compose.yml` 已備妥，待本機 Docker Desktop 恢復正常 |
+| SQLite 資料庫決策 | `done` | 主管確認 SQLite 為正式採用，不再規劃 Postgres／Supabase 切換 |
+| Turso 共用資料庫驅動程式（`lib/prisma.ts` adapter） | `done` | 已實作並驗證本機檔案回退路徑；`serverExternalPackages` 已排除 libsql 打包問題 |
+| Turso 帳號／資料庫建立與 `.env` 設定 | `open` | 須由你方本人建立 Turso 帳號，見「資料庫架構」步驟 |
 | 8/5 測試窗口前重啟 staging 服務 | `open` | QA 發現長時間運行之 `next dev` 快取可能損毀，建議測試窗口開始前重啟一次，或改用 `next build && next start` |
 | 視覺截圖驗收（RWD／動畫） | `open` | 本次瀏覽器分頁未顯示畫面合成，僅驗證 DOM／互動邏輯，未執行截圖比對 |
 | 🟠🩷🟣 正式 GA4／Meta／交易信／Ragic 憑證 | `open` | 分別待 Lindy／公關公司／公司財務提供，非工程可自行產生 |

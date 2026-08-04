@@ -255,3 +255,27 @@
 - 回頭把 QA 結果同步進 `README.md`：頂部狀態列與 `devlog.md` 連結旁新增 QA 紀錄連結；「§12 測試表對照」整節改寫成引用獨立 QA 複測結果（20/3/0），並把「快取損毀」的操作建議寫進去；「專案進度追蹤」新增「獨立 QA 測試」「測試資料清理」兩列（皆 `done`），新增「8/5 測試窗口前重啟 staging 服務」一列（`open`）。
 
 **遇到的問題：** 無執行面問題；QA 發現的快取問題已在當次排除，不需要額外修復動作。
+
+---
+
+## Phase 20 — SQLite 定案、Turso 共用資料庫串接
+
+**背景：** 主管確認「用 SQLite 就可以」——SQLite 從此是正式採用的資料庫，不是等 Docker/Supabase 到位前的暫時方案。同時要求做一個後台登入查報名者資訊；`/admin` 其實已經做好（Phase 7），不用重做。真正的缺口是「共用」：SQLite 是單機檔案，之前只存在這台開發機上，CTO 跟公關要透過同一個 `/admin` 看到同一份即時資料，需要一個大家都連得到的共用資料庫，不是各自機器各存一份。
+
+**做了什麼：**
+- 選型：**Turso**（雲端託管 libSQL，SQLite 方言）——符合「SQLite」的決策，不用改資料型別或重寫 schema，比切換到 Postgres 改動小很多。
+- 確認要裝的套件版本：`prisma`/`@prisma/client` 本機裝的是 6.19.3，`@prisma/adapter-libsql` 特地釘在同一個版本（6.19.3）而不是裝最新的 7.x，避免 major version 對不齊。
+- `prisma/schema.prisma`：`generator client` 一度加了 `previewFeatures = ["driverAdapters"]`，執行後發現這版 Prisma 已經內建、該 flag 已棄用，故拿掉；`datasource` 維持 `provider = "sqlite"` 不變，加註解說明現在的 `url`／`DATABASE_URL` 只給 Prisma CLI（migrate/studio）用，應用程式本身走 driver adapter。
+- `lib/prisma.ts` 改寫：用 `@prisma/adapter-libsql` 建立 `PrismaClient`；`TURSO_DATABASE_URL` 有設就連 Turso，沒設就回退成本機檔案（`path.join(process.cwd(), "prisma", "dev.db")` 組出絕對路徑再轉成 `file:` URL，不依賴相對路徑解析規則，避免 Prisma 原生 sqlite provider 跟 libsql client 對「相對路徑基準點」認知不同造成的落差）。
+- `.env`／`.env.example` 新增 `TURSO_DATABASE_URL`／`TURSO_AUTH_TOKEN` 兩個變數，說明留空即回退本機檔案。
+
+**遇到的問題／修正：**
+1. `npx prisma generate` 第一次跑就噴 `EPERM: operation not permitted, rename ...query_engine-windows.dll.node`——查出是這台機器上還留著兩組完整的 `npm run dev` → `next dev` → `start-server.js` 行程鏈（其中一組是很早之前手動起的、另一組疑似 QA agent 那輪留下的），把產生的 query engine dll 檔案鎖住了。用 `Get-CimInstance Win32_Process` 依 command line 找出全部相關 PID 後逐一 `Stop-Process -Force`，殺乾淨才能重新 generate。
+2. `npm run build` 第一次噴 webpack 錯誤：`libsql`／`@libsql/client` 內部用動態 `require` 把自己的 `README.md`／`LICENSE` 也拉進 bundle，webpack 看到非 JS 內容直接 parse failed。libsql 的本機檔案／原生綁定客戶端本來就不是設計給 bundler 打包的，是要在執行期用 Node 原生 `require` 載入。修法：`next.config.mjs` 加 `serverExternalPackages: ["@libsql/client", "libsql", "@prisma/adapter-libsql"]`，告訴 Next.js 這幾個套件在伺服器端維持原生 require、不要進 webpack bundle。
+3. 修完 webpack 問題後換成 TypeScript 型別錯誤：`new PrismaLibSQL(buildLibsqlClient())` 型別不合，因為 `PrismaLibSQL` 建構子吃的是連線設定物件（`{url, authToken}`），不是已經 `createClient()` 建好的 `Client` 實例。原本寫法多繞了一手，改成直接把設定物件傳給 `PrismaLibSQL`，讓 adapter 自己內部去建立底層 client。
+4. 修完後 `npm run build` 又噴一個看似無關的錯誤：`Cannot find module for page: /api/export`。判斷是 `.next` 快取又髒了（跟 Phase 19 QA 發現的同一類問題），`rm -rf .next` 全新重 build 後正常，不是程式碼問題。
+5. 本機驗證回退路徑時，先用 `curl -d '{...中文...}'` 直接在 bash 內嵌 JSON 送測試資料，結果中文欄位全部變亂碼、驗證失敗——這是 Windows git-bash 底下 shell 字串傳遞的編碼問題（QA log 也記錄過同一類「測試方法產物」，不是伺服器端問題）。改用 `node -e` 搭配原生 `fetch()`、在 Node 的 JS 字串字面值裡直接寫中文（Node 對 UTF-8 字串處理正確，不經過 shell 轉譯），送出後 200 + 正確寫入。之後用一般（非 adapter）的 `PrismaClient` 直接查 `dev.db`，確認 adapter 路徑跟原本的路徑讀寫的是同一個檔案，驗證完刪除這筆測試資料。
+- 因為 Postgres／Supabase 不再是計畫的一部分，移除已經沒用的 `docker-compose.yml`，並同步修正 README／`openspec` `design.md` 裡所有跟 Docker/Postgres/Supabase 相關的敘述——`design.md` 的做法是保留原始決策脈絡（當初為何選 Postgres）、標記為「已被後續決策取代」，而不是直接刪掉改寫，讓決策紀錄還能追溯。
+- 在 README 新增「資料庫架構：SQLite（本機檔案／Turso 共用）」一節，取代原本的「已知偏離計畫事項」，並寫清楚建立 Turso 帳號、資料庫、Token 的步驟——這一步需要外部帳號，無法代為執行，留給你本人操作。
+
+**未完成、待後續：** Turso 帳號與資料庫尚未實際建立（需要外部帳號，不是工程能自己生出來的），目前程式碼已經準備好、一有連線資訊就能直接運作，不需要再改程式碼。
