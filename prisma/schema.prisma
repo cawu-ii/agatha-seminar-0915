@@ -1,0 +1,71 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+// NOTE: sqlite for local/staging verification because Docker Desktop's engine
+// would not come up in this environment (see README "Known deviations").
+// Swap provider back to "postgresql" once Docker or Supabase is available -
+// the only other change needed is the two String[] fields below (see note).
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum SendStatus {
+  PENDING
+  SENT
+  FAILED
+  SKIPPED
+}
+
+model Registration {
+  id             String   @id @default(uuid())
+  eventId        String   @unique @default(uuid())
+  idempotencyKey String   @unique
+
+  // form fields (see agatha-seminar-landing-0803.html #regform)
+  name          String
+  company       String
+  taxId         String
+  dept          String
+  deptOther     String?
+  title         String
+  titleOther    String?
+  industry      String
+  industryOther String?
+  size          String
+  email         String
+  phone         String
+  // Json-encoded string[] - sqlite has no native array type. Under Postgres
+  // this would be `String[]`; see the datasource note above.
+  sessions      String
+  stage         String
+  stageOther    String?
+  consult       String
+  consultOther  String?
+  agreeTerms    Boolean
+  agreeMarketing Boolean @default(false)
+
+  // acquisition / UTM (CTO handoff doc §4/§6.2)
+  utmSource   String?
+  utmMedium   String?
+  utmCampaign String?
+  utmContent  String?
+
+  // downstream integration status (doc §6.3/§6.4)
+  emailStatus     SendStatus @default(PENDING)
+  emailSentAt     DateTime?
+  metaCapiStatus  SendStatus @default(PENDING)
+  metaCapiSentAt  DateTime?
+  ragicSyncedAt   DateTime?
+
+  // admin console (doc §6.2 "開後台權限給公關")
+  reviewed     Boolean  @default(false)
+  reviewerNote String?
+
+  createdAt DateTime @default(now())
+
+  @@index([utmSource, utmContent])
+  @@index([createdAt])
+  @@index([reviewed])
+}

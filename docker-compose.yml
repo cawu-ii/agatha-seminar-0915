@@ -1,0 +1,15 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: agatha
+      POSTGRES_PASSWORD: agatha_local_dev
+      POSTGRES_DB: agatha_seminar
+    ports:
+      - "5432:5432"
+    volumes:
+      - agatha_seminar_pgdata:/var/lib/postgresql/data
+
+volumes:
+  agatha_seminar_pgdata:
