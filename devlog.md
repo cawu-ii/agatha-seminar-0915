@@ -150,7 +150,7 @@
   14. `npm run export:registrations` 本機執行成功，產出 CSV。
 
 **遇到的問題：**
-- `preview_start({name: "seminar-dev"})` 第一次執行時，實際啟動的是另一個專案（roommate-utility-calculator）殘留在主要工作目錄 `.claude/launch.json` 裡的 `streamlit-app`（port 8501），因為 `seminar_apply` 一開始沒有自己的 `launch.json`。發現後在 `seminar_apply/.claude/launch.json` 新增正確設定，但 `preview_start` 的 `name` 查找似乎仍固定指向主要工作目錄的設定檔，沒有改用新設定。改用替代方案：直接用 Bash 在背景執行 `npm run dev`，等它印出 `Ready` 之後，用 `preview_start({url: "http://localhost:3000/..."})` 開分頁連過去，成功繞過這個限制。
+- `preview_start({name: "seminar-dev"})` 第一次執行時，實際啟動的是主要工作目錄 `.claude/launch.json` 裡殘留的另一組設定（`streamlit-app`，port 8501），因為 `seminar_apply` 一開始沒有自己的 `launch.json`。發現後在 `seminar_apply/.claude/launch.json` 新增正確設定，但 `preview_start` 的 `name` 查找似乎仍固定指向主要工作目錄的設定檔，沒有改用新設定。改用替代方案：直接用 Bash 在背景執行 `npm run dev`，等它印出 `Ready` 之後，用 `preview_start({url: "http://localhost:3000/..."})` 開分頁連過去，成功繞過這個限制。
 - `computer({action: "screenshot"})` 每次都逾時失敗，錯誤訊息是「Browser pane is not displayed, so the page is not compositing frames」——這個環境的瀏覽器分頁沒有被畫面顯示出來，導致無法截圖做視覺比對。**因此本次沒有用截圖驗證過實際排版/RWD/動畫效果**，只驗證了 DOM 結構、文字內容、互動邏輯（點擊、表單送出、API 回應）。如果要嚴謹核對視覺呈現，需要在有畫面顯示的環境下重跑一次截圖驗收。
 
 ---
@@ -198,16 +198,16 @@
 
 ---
 
-## Phase 16 — README 視覺整理（比照 baby-project 範例）
+## Phase 16 — README 視覺整理
 
-- 目標：「README 整齊好看」、「資料流做成一張圖」。參考另一個專案（`baby-project/README.md`）的原始 Markdown，確認畫面的整齊感來自：頂部技術棧 badge、依負責人上色的 `mermaid flowchart`（用 `classDef` 上色而非預設灰底）、對齊整齊的 tree 區塊，而不是什麼特殊渲染器——都是標準 Markdown + Mermaid，換一個支援 Mermaid 的檢視器（GitHub／VS Code／Cursor 等）就能看到同樣效果。
+- 目標：「README 整齊好看」、「資料流做成一張圖」。確認畫面的整齊感來自：頂部技術棧 badge、依負責人上色的 `mermaid flowchart`（用 `classDef` 上色而非預設灰底）、對齊整齊的 tree 區塊，而不是什麼特殊渲染器——都是標準 Markdown + Mermaid，換一個支援 Mermaid 的檢視器（GitHub／VS Code／Cursor 等）就能看到同樣效果。
 - 對應改造 `README.md`：
   1. 頂部加技術棧 badge（Next.js／TypeScript／Prisma／SQLite／Supabase／狀態）。
-  2. 新增「目錄」錨點連結（對照 baby-project 的目錄節）。
-  3. 新增「角色與分工」一節，把交接文件 §0 的角色表（Lindy／CTO／公關／BD）轉成跟 baby-project 一樣的彩色圓點標示法（🔵 CTO・🟠 Lindy・🩷 公關・🟣 公司），這組顏色之後在資料流圖、`.env` 表、專案結構樹裡重複使用，維持一致。
+  2. 新增「目錄」錨點連結。
+  3. 新增「角色與分工」一節，把交接文件 §0 的角色表（Lindy／CTO／公關／BD）轉成彩色圓點標示法（🔵 CTO・🟠 Lindy・🩷 公關・🟣 公司），這組顏色之後在資料流圖、`.env` 表、專案結構樹裡重複使用，維持一致。
   4. 把原本分開的「系統架構圖」（`graph TD`）與「資料流圖」（`sequenceDiagram`）**合併成一張**「系統資料流」`flowchart TD`，用 `classDef` 依「憑證/操作由誰負責」上色，而不是依技術模組上色——這樣顏色才對應到「這格要等誰」，比純技術分層更有資訊量。
   5. `.env` 逐項說明表、專案結構樹也補上對應色點，讓「誰負責」這件事在全篇文件視覺上一致，不用每節重新說明一次。
-  6. 「專案結構」保留先前已澄清的說明——**明確標注這不是 monorepo**（單一 Next.js App Router 專案），不照抄參考截圖的標題字面照搬成錯誤說法。
+  6. 「專案結構」保留先前已澄清的說明——**明確標注這不是 monorepo**（單一 Next.js App Router 專案），不使用會誤導的標題字面說法。
 - 接著新增「工作區紀錄」小節，用表格列 `open`／`ongoing`／`done` 三態。新增在 README 最後一節，把先前散落在各節的「已知偏離」「待確認事項」「下一步」等未完成項目，收斂成一張單一狀態表，並定義三態的判斷標準（`done`=已完成並驗證；`ongoing`=程式碼/管線就緒但等外部條件；`open`=還沒動工或卡在工程無法自己解決的外部依賴），避免跟既有段落內容重複又對不上。
 - 無執行面問題，純文件排版與資訊架構調整，未動到任何程式碼。
 
