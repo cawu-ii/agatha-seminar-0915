@@ -36,6 +36,7 @@ const STATUS_CLASS: Record<Registration["emailStatus"], string> = {
 export function AdminTable() {
   const [rows, setRows] = useState<Registration[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [utmSource, setUtmSource] = useState("");
   const [utmContent, setUtmContent] = useState("");
@@ -44,15 +45,27 @@ export function AdminTable() {
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     const params = new URLSearchParams();
     if (q) params.set("q", q);
     if (utmSource) params.set("utm_source", utmSource);
     if (utmContent) params.set("utm_content", utmContent);
     if (reviewedFilter) params.set("reviewed", reviewedFilter);
-    const res = await fetch(`/api/admin/registrations?${params.toString()}`);
-    const data = await res.json();
-    setRows(data.registrations ?? []);
-    setLoading(false);
+    try {
+      const res = await fetch(`/api/admin/registrations?${params.toString()}`);
+      const data = await res.json();
+      if (!res.ok) {
+        setLoadError(data.error ?? "載入失敗，請稍後再試。");
+        setRows([]);
+        return;
+      }
+      setRows(data.registrations ?? []);
+    } catch {
+      setLoadError("連線失敗，請確認網路連線後重試。");
+      setRows([]);
+    } finally {
+      setLoading(false);
+    }
   }, [q, utmSource, utmContent, reviewedFilter]);
 
   useEffect(() => {
@@ -91,9 +104,11 @@ export function AdminTable() {
         </select>
       </div>
 
+      {loadError && <p className="admin__error">{loadError}</p>}
+
       {loading ? (
         <p style={{ color: "#5f7268" }}>載入中…</p>
-      ) : (
+      ) : loadError ? null : (
         <div style={{ overflowX: "auto" }}>
           <table>
             <thead>

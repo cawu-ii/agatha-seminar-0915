@@ -291,3 +291,23 @@
 - 既然部署方要另外決定主機，工程端唯一該提前講清楚的是：**該主機類型必須支援持久化硬碟**（SQLite 檔案寫入才留得住），**不能是 Vercel 這類 serverless／無狀態部署**——這不是效能問題，是選錯的話報名資料會真的消失。這件事寫進 README 三個地方：「資料庫架構」一節的專屬小標題、「待確認事項」新增一條請轉知主管、「專案進度追蹤」把「部署與網域」列成 `ongoing`（由主管方負責，工程端已告知限制）。
 - 把 README「資料庫架構」一節整個倒過來寫：標題從「SQLite（本機檔案／Turso 共用）」改成「SQLite」；本文先講持久化硬碟這個硬性限制，Turso 整段降級成「（選用）Turso 共用資料庫」小節，說明是選用、不影響純 SQLite 部署，程式碼已經預留好但不強制。同步修正頂部技術棧 badge（拿掉 `via Turso` 字樣）、系統資料流圖的 DB 節點標籤（改成「部署主機硬碟上的檔案」，不再提 Turso 字樣）、`.env` 環境變數說明表（`TURSO_*` 那列標成「選用」、「留空即為純 SQLite」）、「專案進度追蹤」表（「Turso 帳號建立」這個待辦項目拿掉，改成「部署與網域」`ongoing`）。
 - 沒有動到任何程式碼——這一輪純粹是把既有的（本來就支援純 SQLite 回退）行為，在文件敘事上調整成正確的優先順序。
+
+---
+
+## Phase 22 — 修正主管端 `/admin` 崩潰：資料庫未初始化未被攔截
+
+**背景：** 密碼改成 `admin123` 之後，主管自己把 repo clone 到公司 AWS 工作機測試，`/admin` 畫面噴出一個 Next.js runtime 錯誤覆蓋層：`Failed to execute 'json' on 'Response': Unexpected end of JSON input`，出在 `components/AdminTable.tsx` 的 `res.json()`。
+
+**診斷過程（先重現，不猜）：**
+- 懷疑是資料庫沒初始化（clone 下來的新機器沒有 `prisma/dev.db`，這個檔案本來就被 `.gitignore` 排除）。實際重現：把本機 `dev.db` 備份後刪掉、重啟開發伺服器、用 `curl` 直接打 `/api/admin/registrations`（帶登入後的 cookie），拿到 `HTTP/1.1 500`，**body 完全是空的**——這正好對應瀏覽器端 `res.json()` 對空字串解析失敗的錯誤訊息。
+- 查伺服器端 log 確認真正的例外：`PrismaClientUnknownRequestError ... SQLITE_ERROR: no such table: main.Registration`。根本原因：**資料庫檔案存在（libsql 第一次連線會自動建立空檔案）但裡面沒有任何資料表**，因為沒有人在這台新機器上跑過 `npx prisma migrate dev`。
+
+**修的東西：**
+1. `app/api/admin/registrations/route.ts`、`app/api/admin/registrations/[id]/review/route.ts`、`app/api/export/route.ts`：原本呼叫 Prisma 的地方完全沒有 try/catch，例外直接往上炸穿整個 route handler，Next.js 就回一個沒有 body 的 500。三支都補上 try/catch，抓到例外時回傳結構化的 `{ error: "資料庫查詢失敗，請確認資料庫已初始化（npx prisma migrate dev）" }` 並記 log，不再是空白 500。
+2. `lib/integrations/email.ts` 的 `sendConfirmationEmail()`：函式上方註解寫著「Never throws」，但實際上 `prisma.registration.findUnique(...)` 那行在 try/catch 範圍外，違反了自己宣告的契約——如果資料庫有問題，這支函式其實會拋出例外。把整個函式本體（含 `findUnique`）都包進 try/catch，`markEmailStatus` 的失敗路徑也額外接 `.catch(() => {})`，讓「絕不拋出例外」變成真的成立，不只是註解說說而已。這連帶修掉 `/api/admin/registrations/[id]/resend/route.ts` 會被同一類例外炸穿的風險（該 route 直接 `await sendConfirmationEmail(id)`，先前完全沒有防護）。
+3. `components/AdminTable.tsx`：`load()` 原本假設 API 一定回傳 `{registrations: [...]}`，例外只是讓 `res.json()` 直接炸掉整個元件（Next.js dev 模式顯示紅色錯誤覆蓋層，production 則是使用者只會看到一片空白或「發生錯誤」）。改成先判斷 `res.ok`，失敗時把後端回傳的錯誤訊息顯示在畫面上（新增 `loadError` state），並在 `fetch` 本身失敗（斷線）時也顯示對應訊息，而不是讓整個 React 元件掛掉。
+4. 用同一招（刪掉 `dev.db`、重啟、重新走一次登入＋打 API）重新驗證：`/api/admin/registrations` 跟 `/api/export` 都改回傳 `200`／`500` 皆帶正確 JSON body；瀏覽器端 `/admin` 畫面直接顯示「資料庫查詢失敗，請確認資料庫已初始化（npx prisma migrate dev）」文字，不再是 runtime 錯誤覆蓋層。驗證完把備份的 `dev.db` 還原，`registration.count()` 確認資料還在（0 筆，符合 Phase 19 清理後的狀態）。
+
+**同步修正的文件缺口：** README「測試步驟」原本寫「`.env` 已提供一份可直接執行之本機開發設定」——這句話只在這台開發機上成立，因為 `.env` 是我在本機手動建立的，從沒進過 git（`.gitignore` 排除，理所當然，機密不該進版控）。但這代表**任何一次全新 `git clone`（換機器、換人）都不會有 `.env`**，照原本步驟直接跑會在更早的地方就失敗（`SESSION_SECRET is not configured` 或密碼永遠對不起來）。改寫成明確的兩步驟：`cp .env.example .env` 並列出至少要填的三個變數（`ADMIN_PASSWORD`／`SESSION_SECRET`／`EXPORT_TOKEN`），以及為什麼漏掉任一步會出現什麼現象，讓下一台新機器（或下一個人）照著做就不會重踩同一個坑。
+
+**根本原因總結**：這不是主管操作錯誤，是文件沒把「換一台全新機器」這個場景交代清楚（`.env` 建立步驟完全沒寫），疊加上 API 對這類環境問題完全沒有防護（例外直接讓回應變成空白）。兩個問題都已修正：文件補齊步驟，程式碼補上防護，兩者疊加確保下次同樣情境不會再變成一個看不懂的空白錯誤。

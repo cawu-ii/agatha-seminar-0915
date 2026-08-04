@@ -11,6 +11,15 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const registrations = await prisma.registration.findMany({ orderBy: { createdAt: "asc" } });
-  return NextResponse.json({ registrations });
+  try {
+    const registrations = await prisma.registration.findMany({ orderBy: { createdAt: "asc" } });
+    return NextResponse.json({ registrations });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error("[api/export] query failed", err);
+    return NextResponse.json(
+      { error: "資料庫查詢失敗，請確認資料庫已初始化（npx prisma migrate dev）" },
+      { status: 500 }
+    );
+  }
 }

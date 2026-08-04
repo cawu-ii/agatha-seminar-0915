@@ -23,13 +23,13 @@ function buildEmail(reg: Registration) {
  * callers must not let this block or fail the registration (see registration-api spec).
  */
 export async function sendConfirmationEmail(registrationId: string): Promise<void> {
-  const reg = await prisma.registration.findUnique({ where: { id: registrationId } });
-  if (!reg) return;
-
-  const provider = process.env.EMAIL_PROVIDER ?? "none";
-  const { subject, text } = buildEmail(reg);
-
   try {
+    const reg = await prisma.registration.findUnique({ where: { id: registrationId } });
+    if (!reg) return;
+
+    const provider = process.env.EMAIL_PROVIDER ?? "none";
+    const { subject, text } = buildEmail(reg);
+
     if (provider === "resend" && process.env.RESEND_API_KEY) {
       const { Resend } = await import("resend");
       const resend = new Resend(process.env.RESEND_API_KEY);
@@ -49,8 +49,8 @@ export async function sendConfirmationEmail(registrationId: string): Promise<voi
     }
   } catch (err) {
     // eslint-disable-next-line no-console
-    console.error(`[email:error] registration ${reg.id}`, err);
-    await markEmailStatus(reg.id, "FAILED");
+    console.error(`[email:error] registration ${registrationId}`, err);
+    await markEmailStatus(registrationId, "FAILED").catch(() => {});
   }
 }
 

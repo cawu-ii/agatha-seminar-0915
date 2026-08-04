@@ -145,13 +145,27 @@ seminar_apply/
 
 ## 測試步驟
 
+**`.env` 與 `prisma/dev.db` 皆已列入 `.gitignore`（含機密資訊／二進位檔案，本就不該進版控），代表每一次全新 `git clone`（例如換一台機器）都不會有這兩個檔案，須手動建立一次，否則會直接連不上或資料庫查詢失敗：**
+
 ```bash
 npm install
-npx prisma migrate dev   # 首次執行將建立本機資料庫
+
+# 1) 建立 .env（.gitignore 排除，clone 下來不會有這個檔案）
+cp .env.example .env
+# 打開 .env，至少要填：
+#   ADMIN_PASSWORD  隨意設一組密碼
+#   SESSION_SECRET  隨機字串，可用下面這行產生：
+#     node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+#   EXPORT_TOKEN    隨意設一組（跟 ADMIN_PASSWORD 不同即可）
+# 其餘（GTM/GA4/Meta/Email/Ragic 相關）留空即可，程式會安全地不啟用該功能
+
+# 2) 建立資料庫結構（prisma/dev.db 也被 .gitignore 排除，clone 下來是空的）
+npx prisma migrate dev
+
 npm run dev              # http://localhost:3000
 ```
 
-`.env` 已提供一份可直接執行之本機開發設定（密碼為 `staging-dev-only`，僅供本機測試使用，正式環境請務必更換）。`.env.example` 為範本，供其他人建立自己的 `.env` 時參考。
+漏掉第 1 步：`/admin` 登入會直接報「密碼錯誤」或伺服器噴 `SESSION_SECRET is not configured`。漏掉第 2 步：畫面看起來正常，但 `/admin` 或報名送出會回傳資料庫錯誤（`no such table`），且**目前版本會在畫面上直接顯示這則錯誤訊息**，不會再是一片空白的當機畫面。
 
 ---
 
