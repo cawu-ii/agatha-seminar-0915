@@ -242,3 +242,16 @@
   5. 執行 `gh auth logout` → `gh auth login`（web browser 互動式流程登入 `cawu-ii`，過程中「Authenticate Git with your GitHub credentials?」選 Yes，讓 git 共用同一組憑證）。
   6. 登入完成後，`gh auth status` 顯示的仍是 `ocaaaaii`（可能是該指令的快取／keyring 顯示延遲），但實際執行 `git push -u origin main` 已經成功（`* [new branch] main -> main`），以 `gh repo view` 的 `pushedAt` 時間戳確認 push 真的落地，不是只看指令沒報錯就假設成功。
 - 本次沒有把任何 push 動作建立在假設上：repo 是否存在、是否可寫入、docx 是否該公開，每一步都是先查證（`ls-remote`／`gh repo view`／`git status`）再動手，而不是直接執行後才發現問題。
+
+---
+
+## Phase 19 — 獨立 QA 測試、資料清理、README 同步更新
+
+**做了什麼：**
+- 開一輪獨立 QA 驗證，先讀完 7 份 capability spec、把 CTO 交接文件 §12 測試表 10 項逐一對應到 spec 需求，再實際跑起 app、逐項用瀏覽器與 API 執行測試（不是只看文件推論結果），並補測 spec 明文要求但未列在 §12 表格的項目（冪等性、匯出權限隔離、CTO 匯出腳本、Ragic no-op 等）。結果：**20 Pass、3 Blocked（#4 確認信／#7 GA4／#8 Meta 像素，皆待真實憑證，非缺陷）、0 Fail**。完整紀錄寫入 `qa/test-log-2026-08-04.md`。
+- QA 過程中意外發現一個環境問題：長時間運行的 `next dev` 快取損毀，導致 `/seminar/0915/thanks` 一度回傳 500。查證方式是分別跑一次全新 `next build`（編譯正常）與重啟 `next dev`（立即恢復正常），確認是開發伺服器的快取問題、不是原始碼缺陷，重啟後排除。記錄為操作建議：8/5 測試窗口開始前先重啟一次 staging 服務，或改用 `next build && next start` 避開 dev 模式的快取風險。
+- QA 期間累積了 5 筆可辨識的測試報名資料（`test+qa-*@example.com` 等）。後台故意沒有刪除功能，所以在刪除前先用 Prisma 查出全部 5 筆逐一核對 email 都符合測試資料格式，確認無誤後才在資料庫層執行 `deleteMany`，刪後再次查詢確認資料庫歸零，不是刪完就假設沒事。
+- `qa/test-log-2026-08-04.md` commit + push 上 GitHub。
+- 回頭把 QA 結果同步進 `README.md`：頂部狀態列與 `devlog.md` 連結旁新增 QA 紀錄連結；「§12 測試表對照」整節改寫成引用獨立 QA 複測結果（20/3/0），並把「快取損毀」的操作建議寫進去；「專案進度追蹤」新增「獨立 QA 測試」「測試資料清理」兩列（皆 `done`），新增「8/5 測試窗口前重啟 staging 服務」一列（`open`）。
+
+**遇到的問題：** 無執行面問題；QA 發現的快取問題已在當次排除，不需要額外修復動作。

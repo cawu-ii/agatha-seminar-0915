@@ -9,9 +9,9 @@
 
 > 對應交接文件《Agatha_Seminar_Landing_Page報名系統與追蹤_CTO交接文件_0729》，實作文件 §0 指派予 CTO／工程之範圍：**報名頁與自建後台、GTM 埋設、GA4／Meta 像素整合、交易信 API 串接與網域驗證、感謝頁、UTM 落庫、後台權限開放予公關**。
 
-規格文件位於 [`openspec/changes/add-seminar-registration-system/`](openspec/changes/add-seminar-registration-system/)（proposal / design / specs / tasks）；本 README 為系統操作手冊，完整 phase-by-phase 開發歷程與遭遇問題記錄於 [`devlog.md`](devlog.md)。
+規格文件位於 [`openspec/changes/add-seminar-registration-system/`](openspec/changes/add-seminar-registration-system/)（proposal / design / specs / tasks）；本 README 為系統操作手冊，完整 phase-by-phase 開發歷程與遭遇問題記錄於 [`devlog.md`](devlog.md)；獨立 QA 測試紀錄於 [`qa/test-log-2026-08-04.md`](qa/test-log-2026-08-04.md)。
 
-**目前狀態：本機／staging 驗證通過（詳見下方「已完成測項與待驗證測項」），尚未部署至 production 或 agatha-ai.com。**
+**目前狀態：本機／staging 已通過獨立 QA 驗證（20 Pass、3 Blocked、0 Fail，詳見下方「已完成測項與待驗證測項」），尚未部署至 production 或 agatha-ai.com。**
 
 ---
 
@@ -207,15 +207,17 @@ npm run export:registrations   # 產出 exports/registrations-YYYY-MM-DD.csv（�
 
 ## §12 測試表對照：已完成測項與待驗證測項
 
-**已於本機／staging 完整測試（屬工程權責範圍，不依賴外部帳號）：**
+已完成一輪**獨立 QA 驗證**（測試者與本文件撰寫者為不同執行單位，逐項對照 `openspec/changes/add-seminar-registration-system/specs/*/spec.md` 七份 capability spec 重新測試，非沿用既有結論），完整紀錄見 [`qa/test-log-2026-08-04.md`](qa/test-log-2026-08-04.md)。結果：**20 Pass、3 Blocked（待真實憑證，非缺陷）、0 Fail**。
+
+**已於本機／staging 完整測試並通過獨立 QA 複測（屬工程權責範圍，不依賴外部帳號）：**
 
 | # | 項目 | 結果 |
 |---|---|---|
-| 1 | RWD／版面 | 頁面結構、樣式、圖片均依核准設計 1:1 轉譯；未執行視覺截圖比對（瀏覽器分頁未顯示畫面合成），惟 DOM／文字內容已逐項核對 |
+| 1 | RWD／版面 | 頁面結構、樣式、圖片均依核准設計 1:1 轉譯；未執行視覺截圖比對（瀏覽器分頁未顯示畫面合成），惟 DOM／文字內容／互動邏輯已逐項核對 |
 | 2 | 報名送出 | 送出後正確寫入資料庫，並正常導向 `/thanks` ✅ |
 | 3 | 表單驗證 | 輸入錯誤格式之 Email 經 API 攔截（400 + 欄位錯誤訊息）✅ |
 | 5 | UTM 落庫 | 帶 `utm_source=benchmark&utm_content=wave1` 送出後，後台正確顯示對應資料 ✅ |
-| 6 | 波次區隔 | 後台可依 `utm_content` 篩選（測試 `wave2` 正確回傳 0 筆）✅ |
+| 6 | 波次區隔 | 後台可依 `utm_content` 篩選（`wave1`／`wave2`／`edm1` 三筆來源皆正確區隔）✅ |
 | 9 | 後台權限 | 公關帳號可查看／篩選／標記／寄信；確認無刪除鍵、無整批匯出鍵 ✅ |
 | 10 | 合規性 | 同意橫幅優先顯示，勾選同意後始注入 GTM；`dataLayer` 事件僅攜帶 `event_id`／UTM，不含 email／phone ✅ |
 | — | 冪等性 | 同一 `idempotencyKey` 送出兩次，僅產生一筆紀錄並回傳相同 `event_id` ✅ |
@@ -228,6 +230,8 @@ npm run export:registrations   # 產出 exports/registrations-YYYY-MM-DD.csv（�
 | 4 | 確認信實際送達 Gmail／Outlook 且未進垃圾郵件匣 | 🟣 交易信服務帳號 + `agatha-ai.com` SPF/DKIM 驗證 |
 | 7 | GA4 即時報表顯示造訪、`registration_submit` 標記為關鍵事件 | 🟠 Lindy 提供之 `G-XXXXXXX` |
 | 8 | Meta 像素測試事件工具驗證 | 🩷 公關提供 Meta 像素／CAPI（文件本身亦註記「視 Alice 是否已提供代碼」，可順延處理）|
+
+**QA 過程中發現之環境問題（已排除，非程式碼缺陷）：** 長時間運行之 `next dev` 開發伺服器快取一度損毀，導致 `/seminar/0915/thanks` 短暫回傳 500；經全新 `next build` 與重啟 `next dev` 確認原始碼無誤。**建議 8/5 測試窗口正式開始前，於 staging 環境重新啟動一次服務**，或改以 `next build && next start` 執行（避開 dev 模式 Fast Refresh 的快取風險）。
 
 ---
 
@@ -263,8 +267,11 @@ npm run export:registrations   # 產出 exports/registrations-YYYY-MM-DD.csv（�
 | CTO 專用匯出（腳本 + `/api/export`） | `done` | 已測試 `ADMIN_PASSWORD` 無法存取此端點 |
 | README／`devlog.md` | `done` | 依 phase 持續更新中 |
 | 本機端到端驗證（§12 測試表工程可測部分） | `done` | 詳見上方測試表 |
+| 獨立 QA 測試（`qa/test-log-2026-08-04.md`） | `done` | 20 Pass／3 Blocked／0 Fail，未發現程式碼缺陷 |
+| 測試資料清理 | `done` | QA 期間產生之 5 筆可辨識測試資料已於資料庫層清除，目前 0 筆 |
 | 🟠🩷🟣 追蹤／寄信／Ragic 整合程式碼 | `ongoing` | 程式碼已完成且安全 no-op，待正式憑證填入 `.env` 方可正式啟用 |
 | Docker → 本機 Postgres 切換 | `ongoing` | `docker-compose.yml` 已備妥，待本機 Docker Desktop 恢復正常 |
+| 8/5 測試窗口前重啟 staging 服務 | `open` | QA 發現長時間運行之 `next dev` 快取可能損毀，建議測試窗口開始前重啟一次，或改用 `next build && next start` |
 | 視覺截圖驗收（RWD／動畫） | `open` | 本次瀏覽器分頁未顯示畫面合成，僅驗證 DOM／互動邏輯，未執行截圖比對 |
 | 🟠🩷🟣 正式 GA4／Meta／交易信／Ragic 憑證 | `open` | 分別待 Lindy／公關公司／公司財務提供，非工程可自行產生 |
 | `agatha-ai.com` 部署與 DNS | `open` | 須由你方親自操作或授權，本次交付範圍未涵蓋 |
