@@ -229,3 +229,17 @@
 - 「角色與分工」一節依使用者指示移除原本 4 條 shields.io badge 圖片，僅保留文字說明與角色分工表格。
 - 全篇改寫後重新檢查所有內部跨節引用文字（例如頂部狀態列提及「見下方」的段落名稱、`/admin 操作說明` 第 4 點提及「後續規劃」）確保與新標題一致，避免指稱對不上。
 - 無執行面問題，純文件用詞調整，未動到任何程式碼；系統資料流的 mermaid 圖表僅微調節點標籤文字用詞，節點 ID 與結構未變動。
+
+---
+
+## Phase 18 — 建立 GitHub Repo 並首次 push（本次）
+
+- 使用者請 Claude 建議 repo 命名與描述；建議採用與 `package.json` 一致的 `agatha-seminar-0915`（理由：目前系統確實是為此單場活動打造，資料庫/後台皆非通用多活動架構），並提醒建議設為 Private，因為 `..._CTO交接文件_0729.docx` 這份內部規格文件會一起進版控。
+- 使用者建立 `https://github.com/cawu-ii/agatha-seminar-0915.git` 並請 Claude commit/push：
+  1. `git ls-remote` 確認不到該 repo（`Repository not found`），且本機 `gh auth status` 顯示登入帳號為 `ocaaaaii`，不是 `cawu-ii`——用 AskUserQuestion 詢問使用者 repo 現況，得知「repo 原本是 private，已改成 public」。
+  2. 改成 public 後重新確認可以看到 repo（`gh repo view` 回傳 `isPrivate:false`），但此時衍生新風險：原本建議「設 Private 保護 docx」的前提已不成立。主動再次跟使用者確認這份標註 `Confidential`／「內部作業文件；對外文案發布前須經行銷確認」的 docx 是否要一併公開，使用者選擇**不 push**，於是把該檔名加進 `.gitignore`，並同步更新 README 專案結構樹裡對這份檔案的註解（從「保留當規格來源」改成「本機保留、標註 Confidential、已加入 .gitignore」）。
+  3. `git init` → `git branch -M main` → `git remote add origin ...` → `git add -A`，`git status` 逐項核對確認 `.env`、`prisma/dev.db`、`exports/`、docx、`node_modules`、`.next` 皆未被staged，只有 87 個預期檔案 → commit。
+  4. 第一次 `git push` 失敗：`Permission to cawu-ii/agatha-seminar-0915.git denied to ocaaaaii`（403）。確認是這台機器的 git/gh 憑證屬於 `ocaaaaii`，沒有 `cawu-ii` repo 的寫入權。再次用 AskUserQuestion 釐清兩個帳號關係與處理方式，使用者選擇「重新登入成 cawu-ii」。
+  5. 提供 `gh auth logout` → `gh auth login`（web browser 互動式流程，含「Authenticate Git with your GitHub credentials?」選 Yes）的操作步驟，因為需要瀏覽器互動、Claude 無法代為執行，交由使用者自行完成。
+  6. 使用者完成登入後，`gh auth status` 顯示的仍是 `ocaaaaii`（可能是該指令的快取／keyring 顯示延遲），但實際執行 `git push -u origin main` 已經成功（`* [new branch] main -> main`），以 `gh repo view` 的 `pushedAt` 時間戳確認 push 真的落地，不是只看指令沒報錯就假設成功。
+- 本次沒有把任何 push 動作建立在假設上：repo 是否存在、是否可寫入、docx 是否該公開，每一步都是先查證（`ls-remote`／`gh repo view`／`git status`）或先問使用者，而不是直接執行後才發現問題。
