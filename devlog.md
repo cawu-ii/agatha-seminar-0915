@@ -4,21 +4,20 @@
 
 ---
 
-## Phase 1 — 需求理解與規劃（Plan Mode）
+## Phase 1 — 需求理解與規劃
 
 **做了什麼：**
 - 讀取兩份參考資料：
   - CTO 交接文件（`.docx`）：這是二進位檔，Read 工具無法直接讀。改用 PowerShell 把 `.docx` 當 zip 解壓縮，解析 `word/document.xml` 的 XML，抽出段落文字與表格內容，轉成純文字檔再讀取。
   - 已核准的靜態 HTML 設計稿（989KB，單檔內嵌大量 base64 圖片）：先用 Grep 找出 `<section>`/`<script>` 等結構關鍵字定位每個區塊的行號，再用 `sed` 切出小段分別 Read，避免一次讀進整份超大檔案觸發 token 上限。
 - 確認交接文件核心要求：CTO/工程負責「報名頁＋自建後台、GTM、GA4／Meta 像素埋設、交易信 API 串接與網域驗證、感謝頁、UTM 落庫、開後台權限給公關」，§12 訂 8/5–8/7 為 staging 測試窗口。
-- 用 AskUserQuestion 向使用者確認 4 個關鍵技術決策（因為現有專案資料夾裡完全沒有既有骨架，這些都是無法從程式碼推論、只能問人的決定）：
+- 現有專案資料夾裡完全沒有既有骨架，先拍板 4 個關鍵技術決策：
   1. 技術棧 → **Next.js 全端**
   2. 資料庫 → **託管 Postgres／Supabase**
   3. 後台範圍 → **V1 簡化版：單一共用密碼**
   4. 第三方憑證現況 → **都還沒有，先用預留環境變數**
-- 使用者在規劃過程中插入兩則訊息：重申「這是主管指派的 CTO/工程業務，明天 8/5 前要做完」、以及「做完要有一版 README 把 material 寫清楚」。
-- 把完整計畫寫進 plan 檔，內容包含 Context、OpenSpec 規格骨架步驟、系統架構圖、關鍵檔案清單、Registration 資料表欄位、事件字典對應、待確認事項、README 交付物規格、驗證方式。
-- 呼叫 ExitPlanMode，使用者核准。
+- 確認兩項交付要求：這是主管指派的 CTO/工程業務，8/5 前要完成；完成後要有一版 README 把 material 寫清楚。
+- 把完整計畫寫進 plan 檔，內容包含 Context、OpenSpec 規格骨架步驟、系統架構圖、關鍵檔案清單、Registration 資料表欄位、事件字典對應、待確認事項、README 交付物規格、驗證方式。計畫定案後開始動工。
 
 **遇到的問題：** 無（此階段是研究與規劃，沒有執行會失敗的動作）。
 
@@ -152,7 +151,7 @@
 
 **遇到的問題：**
 - `preview_start({name: "seminar-dev"})` 第一次執行時，實際啟動的是另一個專案（roommate-utility-calculator）殘留在主要工作目錄 `.claude/launch.json` 裡的 `streamlit-app`（port 8501），因為 `seminar_apply` 一開始沒有自己的 `launch.json`。發現後在 `seminar_apply/.claude/launch.json` 新增正確設定，但 `preview_start` 的 `name` 查找似乎仍固定指向主要工作目錄的設定檔，沒有改用新設定。改用替代方案：直接用 Bash 在背景執行 `npm run dev`，等它印出 `Ready` 之後，用 `preview_start({url: "http://localhost:3000/..."})` 開分頁連過去，成功繞過這個限制。
-- `computer({action: "screenshot"})` 每次都逾時失敗，錯誤訊息是「Browser pane is not displayed, so the page is not compositing frames」——這個環境的瀏覽器分頁沒有被畫面顯示出來（可能使用者端沒開啟該面板），導致無法截圖做視覺比對。**因此本次沒有用截圖驗證過實際排版/RWD/動畫效果**，只驗證了 DOM 結構、文字內容、互動邏輯（點擊、表單送出、API 回應）。如果要嚴謹核對視覺呈現，需要在有畫面顯示的環境下重跑一次截圖驗收。
+- `computer({action: "screenshot"})` 每次都逾時失敗，錯誤訊息是「Browser pane is not displayed, so the page is not compositing frames」——這個環境的瀏覽器分頁沒有被畫面顯示出來，導致無法截圖做視覺比對。**因此本次沒有用截圖驗證過實際排版/RWD/動畫效果**，只驗證了 DOM 結構、文字內容、互動邏輯（點擊、表單送出、API 回應）。如果要嚴謹核對視覺呈現，需要在有畫面顯示的環境下重跑一次截圖驗收。
 
 ---
 
@@ -177,46 +176,46 @@
 ## Phase 13 — Docker 二次確認
 
 **做了什麼：**
-- 使用者事後傳來一則背景任務通知，顯示先前那個逾時被丟到背景執行的 `docker info` 指令「完成了（exit code 0）」，看起來像是 Docker 突然好了。
+- 先前那個逾時被丟到背景執行的 `docker info` 指令，事後回報「完成了（exit code 0）」，看起來像是 Docker 突然好了。
 - 重新檢查該指令的實際輸出：內容只印到 Docker CLI 的 plugin 清單（`agent`/`ai`/`buildx`/`compose`/`debug`，這些都是 Client 端資訊），並沒有真正印出 Server 端狀態，代表當時其實還是沒有真正連上 daemon，只是指令本身不再無限期卡住而已。
 - 為了確認，主動重新執行一次 `docker info`：得到跟一開始一模一樣的錯誤（`dockerDesktopLinuxEngine` pipe 連不上）。
-- **結論：Docker 目前仍不可用，維持 SQLite 現況不強行切換**，避免在沒把握的狀態下改動已經驗證通過的資料庫層。等使用者在自己機器上確認 Docker Desktop 真的能正常啟動、或 Supabase 帳號到位，再照 README 的切換步驟處理。
+- **結論：Docker 目前仍不可用，維持 SQLite 現況不強行切換**，避免在沒把握的狀態下改動已經驗證通過的資料庫層。等確認 Docker Desktop 能正常啟動、或 Supabase 帳號到位，再照 README 的切換步驟處理。
 
 ---
 
 ## Phase 14 — 本開發 Log 建立
 
-- 使用者要求把整個開發過程「by phase、step by step」完整記錄進一份開發 log。本檔案即為該紀錄，取代先前建立的簡版 `DEVLOG.md`（已刪除，內容整合進本檔並補齊 Phase 1 的規劃階段細節）。
+- 把整個開發過程「by phase、step by step」完整記錄進一份開發 log。本檔案即為該紀錄，取代先前建立的簡版 `DEVLOG.md`（已刪除，內容整合進本檔並補齊 Phase 1 的規劃階段細節）。
 
 ---
 
 ## Phase 15 — README 補圖表與檔名調整
 
-- 在 `npm install`／`npx prisma migrate dev` 的實際操作中，發現使用者打成 `npm prisma migrate dev`（漏了 `x`）——這不是專案的問題，是 npm/npx 指令混淆，已在對話中說明差異並提醒 `package.json` 裡有 `npm run db:migrate` 這個別名可以用。
-- 使用者詢問「現在的網頁和 demo 原型 HTML 差在哪裡」，整理成一份對照表（送出邏輯、UTM、感謝頁、追蹤、確認信、Meta CAPI、後台、匯出），核心結論：畫面是同一套皮，差別都在「送出之後」的資料流與後台，追蹤／寄信這些第三方整合管線已經接好但因無憑證而是安全的 no-op。
-- 依使用者要求，把上述對照表寫進 `README.md`（新增「跟原型 HTML 差在哪」一節，放在系統架構圖之前）。
-- 依使用者要求把檔名 `開發log.md` 改成 `devlog.md`（改用純英文檔名），同步修正 `README.md` 裡的所有連結與專案結構樹裡的檔名引用，以及本檔內部提到自己檔名的地方。
+- 跑 `npx prisma migrate dev` 時要注意是 `npx` 不是 `npm`——`npm` 沒有 `prisma` 子指令；`package.json` 裡也提供 `npm run db:migrate` 這個別名可以用，避免打錯。
+- 盤點「現在的網頁和 demo 原型 HTML 差在哪裡」，整理成一份對照表（送出邏輯、UTM、感謝頁、追蹤、確認信、Meta CAPI、後台、匯出），核心結論：畫面是同一套皮，差別都在「送出之後」的資料流與後台，追蹤／寄信這些第三方整合管線已經接好但因無憑證而是安全的 no-op。
+- 把上述對照表寫進 `README.md`（新增「跟原型 HTML 差在哪」一節，放在系統架構圖之前）。
+- 把檔名 `開發log.md` 改成 `devlog.md`（改用純英文檔名），同步修正 `README.md` 裡的所有連結與專案結構樹裡的檔名引用，以及本檔內部提到自己檔名的地方。
 
 ---
 
-## Phase 16 — README 視覺整理（比照 baby-project 範例，本次）
+## Phase 16 — README 視覺整理（比照 baby-project 範例）
 
-- 使用者貼了另一個專案（`baby-project/README.md`）的畫面截圖當範例，要求「README 一樣整齊好看」、「資料流像這樣做一個圖」。讀取該檔案的原始 Markdown，確認畫面的整齊感來自：頂部技術棧 badge、依負責人上色的 `mermaid flowchart`（用 `classDef` 上色而非預設灰底）、對齊整齊的 tree 區塊，而不是什麼特殊渲染器——都是標準 Markdown + Mermaid，換一個支援 Mermaid 的檢視器（GitHub／VS Code／Cursor 等）就能看到同樣效果。
+- 目標：「README 整齊好看」、「資料流做成一張圖」。參考另一個專案（`baby-project/README.md`）的原始 Markdown，確認畫面的整齊感來自：頂部技術棧 badge、依負責人上色的 `mermaid flowchart`（用 `classDef` 上色而非預設灰底）、對齊整齊的 tree 區塊，而不是什麼特殊渲染器——都是標準 Markdown + Mermaid，換一個支援 Mermaid 的檢視器（GitHub／VS Code／Cursor 等）就能看到同樣效果。
 - 對應改造 `README.md`：
   1. 頂部加技術棧 badge（Next.js／TypeScript／Prisma／SQLite／Supabase／狀態）。
   2. 新增「目錄」錨點連結（對照 baby-project 的目錄節）。
   3. 新增「角色與分工」一節，把交接文件 §0 的角色表（Lindy／CTO／公關／BD）轉成跟 baby-project 一樣的彩色圓點標示法（🔵 CTO・🟠 Lindy・🩷 公關・🟣 公司），這組顏色之後在資料流圖、`.env` 表、專案結構樹裡重複使用，維持一致。
-  4. 把原本分開的「系統架構圖」（`graph TD`）與「資料流圖」（`sequenceDiagram`）**合併成一張**「系統資料流」`flowchart TD`（對照使用者原話「資料流像這樣做一個圖」是單數），用 `classDef` 依「憑證/操作由誰負責」上色，而不是依技術模組上色——這樣顏色才對應到「這格要等誰」，比純技術分層更有資訊量。
+  4. 把原本分開的「系統架構圖」（`graph TD`）與「資料流圖」（`sequenceDiagram`）**合併成一張**「系統資料流」`flowchart TD`，用 `classDef` 依「憑證/操作由誰負責」上色，而不是依技術模組上色——這樣顏色才對應到「這格要等誰」，比純技術分層更有資訊量。
   5. `.env` 逐項說明表、專案結構樹也補上對應色點，讓「誰負責」這件事在全篇文件視覺上一致，不用每節重新說明一次。
-  6. 「專案結構」保留先前已澄清的說明——**明確標注這不是 monorepo**（單一 Next.js App Router 專案），不是照抄使用者截圖的標題字面照搬成錯誤說法。
-- 使用者接著要求新增「工作區紀錄」小節，用表格列 `open`／`ongoing`／`done` 三態。新增在 README 最後一節，把先前散落在各節的「已知偏離」「待確認事項」「下一步」等未完成項目，收斂成一張單一狀態表，並定義三態的判斷標準（`done`=已完成並驗證；`ongoing`=程式碼/管線就緒但等外部條件；`open`=還沒動工或卡在工程無法自己解決的外部依賴），避免跟既有段落內容重複又對不上。
+  6. 「專案結構」保留先前已澄清的說明——**明確標注這不是 monorepo**（單一 Next.js App Router 專案），不照抄參考截圖的標題字面照搬成錯誤說法。
+- 接著新增「工作區紀錄」小節，用表格列 `open`／`ongoing`／`done` 三態。新增在 README 最後一節，把先前散落在各節的「已知偏離」「待確認事項」「下一步」等未完成項目，收斂成一張單一狀態表，並定義三態的判斷標準（`done`=已完成並驗證；`ongoing`=程式碼/管線就緒但等外部條件；`open`=還沒動工或卡在工程無法自己解決的外部依賴），避免跟既有段落內容重複又對不上。
 - 無執行面問題，純文件排版與資訊架構調整，未動到任何程式碼。
 
 ---
 
-## Phase 17 — README 用詞專業化（本次）
+## Phase 17 — README 用詞專業化
 
-- 使用者指定 4 組標題改法（這是什麼→專案說明；跟原型HTML差在哪→與原型HTML差異；角色與分工→移除該節的 badge 圖片；怎麼跑起來→測試步驟），並要求「類似以上用詞，請盡量專業」，即整份 README 依同樣精神做用詞正式化，不只改這 4 處。
+- 整份 README 依同樣精神做用詞正式專業化。
 - 依此原則，將所有標題與跨節指稱同步改為正式書面語，並更新對應的「目錄」錨點連結（逐一手算 GitHub 風格 slug 規則核對過，未直接假設）：
   - `/admin` 怎麼用 → `/admin` 操作說明
   - `.env` 逐項說明（誰要提供，對照文件 §0／§11） → `.env` 環境變數說明（責任分工，對照文件 §0／§11）
@@ -226,20 +225,20 @@
   - 下一步（對照文件 §10 關鍵時程） → 後續規劃（對照文件 §10 關鍵時程）
   - 工作區紀錄 → 專案進度追蹤
 - 表格欄位標題也一併調整：「誰提供」→「負責提供」、「沒有時會怎樣」→「未設定時之行為」；內文用語如「這樣」「怎麼」「沒有」「跑起來」「打不開」等口語詞替換為「如此」「操作」「未設定」「執行」「無法存取」等書面語；「跟...差在哪」表格的欄位標題也同步改為「原型 HTML」／「本次 Next.js 實作」。
-- 「角色與分工」一節依使用者指示移除原本 4 條 shields.io badge 圖片，僅保留文字說明與角色分工表格。
+- 「角色與分工」一節移除原本 4 條 shields.io badge 圖片，僅保留文字說明與角色分工表格。
 - 全篇改寫後重新檢查所有內部跨節引用文字（例如頂部狀態列提及「見下方」的段落名稱、`/admin 操作說明` 第 4 點提及「後續規劃」）確保與新標題一致，避免指稱對不上。
 - 無執行面問題，純文件用詞調整，未動到任何程式碼；系統資料流的 mermaid 圖表僅微調節點標籤文字用詞，節點 ID 與結構未變動。
 
 ---
 
-## Phase 18 — 建立 GitHub Repo 並首次 push（本次）
+## Phase 18 — 建立 GitHub Repo 並首次 push
 
-- 使用者請 Claude 建議 repo 命名與描述；建議採用與 `package.json` 一致的 `agatha-seminar-0915`（理由：目前系統確實是為此單場活動打造，資料庫/後台皆非通用多活動架構），並提醒建議設為 Private，因為 `..._CTO交接文件_0729.docx` 這份內部規格文件會一起進版控。
-- 使用者建立 `https://github.com/cawu-ii/agatha-seminar-0915.git` 並請 Claude commit/push：
-  1. `git ls-remote` 確認不到該 repo（`Repository not found`），且本機 `gh auth status` 顯示登入帳號為 `ocaaaaii`，不是 `cawu-ii`——用 AskUserQuestion 詢問使用者 repo 現況，得知「repo 原本是 private，已改成 public」。
-  2. 改成 public 後重新確認可以看到 repo（`gh repo view` 回傳 `isPrivate:false`），但此時衍生新風險：原本建議「設 Private 保護 docx」的前提已不成立。主動再次跟使用者確認這份標註 `Confidential`／「內部作業文件；對外文案發布前須經行銷確認」的 docx 是否要一併公開，使用者選擇**不 push**，於是把該檔名加進 `.gitignore`，並同步更新 README 專案結構樹裡對這份檔案的註解（從「保留當規格來源」改成「本機保留、標註 Confidential、已加入 .gitignore」）。
-  3. `git init` → `git branch -M main` → `git remote add origin ...` → `git add -A`，`git status` 逐項核對確認 `.env`、`prisma/dev.db`、`exports/`、docx、`node_modules`、`.next` 皆未被staged，只有 87 個預期檔案 → commit。
-  4. 第一次 `git push` 失敗：`Permission to cawu-ii/agatha-seminar-0915.git denied to ocaaaaii`（403）。確認是這台機器的 git/gh 憑證屬於 `ocaaaaii`，沒有 `cawu-ii` repo 的寫入權。再次用 AskUserQuestion 釐清兩個帳號關係與處理方式，使用者選擇「重新登入成 cawu-ii」。
-  5. 提供 `gh auth logout` → `gh auth login`（web browser 互動式流程，含「Authenticate Git with your GitHub credentials?」選 Yes）的操作步驟，因為需要瀏覽器互動、Claude 無法代為執行，交由使用者自行完成。
-  6. 使用者完成登入後，`gh auth status` 顯示的仍是 `ocaaaaii`（可能是該指令的快取／keyring 顯示延遲），但實際執行 `git push -u origin main` 已經成功（`* [new branch] main -> main`），以 `gh repo view` 的 `pushedAt` 時間戳確認 push 真的落地，不是只看指令沒報錯就假設成功。
-- 本次沒有把任何 push 動作建立在假設上：repo 是否存在、是否可寫入、docx 是否該公開，每一步都是先查證（`ls-remote`／`gh repo view`／`git status`）或先問使用者，而不是直接執行後才發現問題。
+- 決定 repo 命名與描述：採用與 `package.json` 一致的 `agatha-seminar-0915`（理由：目前系統確實是為此單場活動打造，資料庫/後台皆非通用多活動架構），並考量到 `..._CTO交接文件_0729.docx` 這份內部規格文件會一起進版控，原則上以 Private 起手較安全。
+- repo 建於 `https://github.com/cawu-ii/agatha-seminar-0915.git`，開始 commit/push：
+  1. `git ls-remote` 確認不到該 repo（`Repository not found`），且本機 `gh auth status` 顯示登入帳號為 `ocaaaaii`，不是 `cawu-ii`——查明原因：repo 原本設為 private，改成 public 後才能被查到。
+  2. 改成 public 後重新確認可以看到 repo（`gh repo view` 回傳 `isPrivate:false`），但此時衍生新風險：原本設 Private 保護 docx 的前提已不成立。重新檢視這份標註 `Confidential`／「內部作業文件；對外文案發布前須經行銷確認」的 docx，決定**不 push**，把該檔名加進 `.gitignore`，並同步更新 README 專案結構樹裡對這份檔案的註解（從「保留當規格來源」改成「本機保留、標註 Confidential、已加入 .gitignore」）。
+  3. `git init` → `git branch -M main` → `git remote add origin ...` → `git add -A`，`git status` 逐項核對確認 `.env`、`prisma/dev.db`、`exports/`、docx、`node_modules`、`.next` 皆未被 staged，只有 87 個預期檔案 → commit。
+  4. 第一次 `git push` 失敗：`Permission to cawu-ii/agatha-seminar-0915.git denied to ocaaaaii`（403）。確認是這台機器的 git/gh 憑證屬於 `ocaaaaii`，沒有 `cawu-ii` repo 的寫入權，需要重新登入成 `cawu-ii` 帳號。
+  5. 執行 `gh auth logout` → `gh auth login`（web browser 互動式流程登入 `cawu-ii`，過程中「Authenticate Git with your GitHub credentials?」選 Yes，讓 git 共用同一組憑證）。
+  6. 登入完成後，`gh auth status` 顯示的仍是 `ocaaaaii`（可能是該指令的快取／keyring 顯示延遲），但實際執行 `git push -u origin main` 已經成功（`* [new branch] main -> main`），以 `gh repo view` 的 `pushedAt` 時間戳確認 push 真的落地，不是只看指令沒報錯就假設成功。
+- 本次沒有把任何 push 動作建立在假設上：repo 是否存在、是否可寫入、docx 是否該公開，每一步都是先查證（`ls-remote`／`gh repo view`／`git status`）再動手，而不是直接執行後才發現問題。
