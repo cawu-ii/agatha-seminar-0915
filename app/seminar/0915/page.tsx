@@ -5,6 +5,8 @@ import { PageEffects } from "@/components/PageEffects";
 import { PartnerWall } from "@/components/PartnerWall";
 import { RegistrationForm } from "@/components/RegistrationForm";
 import { prisma } from "@/lib/prisma";
+import { loadFormOptions } from "@/lib/form-options-db";
+import type { FormOptionsByField } from "@/lib/registration-schema";
 
 // Agenda is DB-backed and PR-editable (openspec: add-agenda-management) - the
 // page must be rendered per-request, not statically at build time, or admin
@@ -24,6 +26,9 @@ export default async function SeminarLandingPage() {
   const speakers = await prisma.speaker.findMany({ orderBy: { sortOrder: "asc" } }).catch(() => []);
   const partners = await prisma.partner.findMany({ orderBy: { sortOrder: "asc" } }).catch(() => []);
   const highlightLabels = ["一", "二", "三", "四", "五", "六", "七", "八", "九", "十"];
+  const formOptions = await loadFormOptions().catch(
+    (): FormOptionsByField => ({ dept: [], title: [], industry: [], size: [], sessions: [], stage: [], consult: [] })
+  );
 
   return (
     <>
@@ -320,7 +325,7 @@ export default async function SeminarLandingPage() {
               <span>名額有限</span>
             </div>
           </div>
-          <RegistrationForm />
+          <RegistrationForm options={formOptions} />
         </div>
       </section>
 

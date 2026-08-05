@@ -166,3 +166,31 @@ model Highlight {
 
   @@index([sortOrder])
 }
+
+// PR/CTO-editable registration form option lists (CTO handoff doc v3 §6.2 -
+// "表單欄" slice, see openspec/changes/add-form-options-cms). Scope is
+// deliberately limited to the VALUE CHOICES within each of the 7 existing
+// fields, not the fields/layout themselves - see design.md Non-Goals. One
+// model covers all 7 fields since they're all the same shape (a value +
+// a sort position), distinguished by `field`.
+enum FormOptionField {
+  DEPT
+  TITLE
+  INDUSTRY
+  SIZE
+  SESSIONS
+  STAGE
+  CONSULT
+}
+
+model FormOption {
+  id        String          @id @default(uuid())
+  field     FormOptionField
+  value     String
+  sortOrder Int
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  @@unique([field, value])
+  @@index([field, sortOrder])
+}

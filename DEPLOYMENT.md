@@ -87,13 +87,16 @@ npx prisma migrate deploy
 #    看起來像密碼設錯了，其實是資料庫裡根本沒有任何帳號可以比對。
 npm run seed:admin
 
-# 6) 灌入內容初始資料（議程／講者／合作夥伴／活動亮點）
-#    ***這四行也務必都要跑，不要跳過*** —— 沒跑，對應區塊在落地頁上會是空白
-#    （不是壞掉，是還沒有資料），常見的漏跑症狀就是「頁面能開但某一區塊沒內容」
+# 6) 灌入內容初始資料（議程／講者／合作夥伴／活動亮點／報名表單選項清單）
+#    ***這五行也務必都要跑，不要跳過*** —— 前四行沒跑，對應區塊在落地頁上會是
+#    空白（不是壞掉，是還沒有資料）；***最後一行 seed:form-options 沒跑則更嚴重***：
+#    報名表單會沒有選項可選，且 POST /api/register 會直接 500，等於報名功能整個
+#    壞掉，不只是某個區塊空白而已
 npm run seed:agenda
 npm run seed:speakers
 npm run seed:partners
 npm run seed:highlights
+npm run seed:form-options
 
 # 7) build 正式版本
 npm run build
@@ -150,6 +153,8 @@ pm2 save
 在告知主管方「可以掛網域了」之前，先在 EC2 本機（或透過 SSH port-forward：`ssh -L 3000:localhost:3000 <你的 EC2>`，再用自己電腦瀏覽器連 `http://localhost:3000`）走過一次：
 
 - [ ] `/seminar/0915` 落地頁能正常開啟，議程／講者／合作夥伴／活動亮點四個區塊都有內容（不是空白）——這四個各對應一個 seed 指令，任一個忘記跑就會有一區是空的
+- [ ] 報名表單每個欄位（部門/職稱/產業/規模/議程興趣/導入階段/諮詢議題）都看得到選項，不是空的下拉/清單——對應 `seed:form-options`，這步沒跑報名功能會直接故障，不只是畫面好看與否的問題
+- [ ] 實際填一筆測試報名並送出成功（不是只看表單畫面）——這一步同時驗證了 `seed:form-options` 有跑，以及動態驗證 schema 跟表單畫面的選項是同步的
 - [ ] 填一筆測試報名資料送出，能正常導向 `/seminar/0915/thanks`
 - [ ] 用 `INITIAL_CTO_EMAIL` / `INITIAL_CTO_PASSWORD` 登入 `/admin`，能看到剛剛那筆測試資料
 - [ ] `/admin` 頁面看得到「帳號管理」「匯出 Excel」兩個按鈕（代表登入的是 CTO 角色，不是誤植成 PR）

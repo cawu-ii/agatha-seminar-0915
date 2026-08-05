@@ -422,3 +422,26 @@
 6. PR 角色能否操作這三個功能沒有另外重新登入手動測，因為六支新 route handler 逐一檢查過原始碼，沒有任何一支呼叫 `getCurrentAccount()` 或檢查 `role`——跟 `agenda-management` 已經驗證過的「無角色限制」是同一套機制、同一份程式碼形狀，屬地驗證即可，記在 `tasks.md` 裡註明是用程式碼檢查而非重複手動測試。
 
 **同步更新：** `openspec/changes/add-content-cms/tasks.md` 全部項目勾選（除了空狀態的重複驗證明確標記為跳過並附理由）；歸檔為 `2026-08-05-add-content-cms`。README 更新：專案說明（新增四條 `/admin/*` 內容管理路由）、v3 更新對照表（講者/夥伴/亮點 CMS 改為「已實作並驗證」）、專案結構樹、測試步驟（補三個 seed 指令）、`/admin` 操作說明（新增「內容管理」小節，說明圖片只能貼網址的限制與原因）、專案進度追蹤表。同步更新 [DEPLOYMENT.md](DEPLOYMENT.md) 的部署步驟與上線前檢查清單，把新增的三個 seed 指令補進去，並把「這幾步最容易漏跑」的提醒寫得更明顯——呼應同一天稍早在 EC2 上真的漏跑過 `seed:admin`／`seed:agenda` 兩次的教訓，不能只加進文件就假設下次不會再漏。
+
+## Phase 27 — 報名表單選項清單 CMS 實作（`add-form-options-cms` 落地）（2026-08-05）
+
+**做了什麼：** v3 待辦裡「表單欄」這項的範圍，先跟你確認過只做「選項清單可編輯」，不做完整表單建構器（欄位種類、順序、單複選型態都維持寫死）。這個範圍界定直接影響了資料模型設計——不是比照議程/講者/夥伴/亮點各開一個 model，而是一個 `FormOption` model 涵蓋 7 個既有欄位（dept/title/industry/size/sessions/stage/consult），用 `field` enum 欄位區分，因為這 7 個欄位的形狀完全一樣（一個值＋一個排序），分開開 7 張表只是重複同一套 CRUD 邏輯 7 次。
+
+- **資料模型**：新增 `FormOptionField` enum（DEPT/TITLE/INDUSTRY/SIZE/SESSIONS/STAGE/CONSULT）與 `FormOption` model（field／value／sortOrder），`@@unique([field, value])` 防止同一欄位塞進重複選項。`npx prisma migrate dev --name add_form_options`。
+- **這次真正新的工程難題（跟前三次 CMS 不一樣的地方）**：`lib/registration-schema.ts` 原本的 `registrationSchema` 是模組載入時就建好、之後每次請求重複使用的常數——這在選項是編譯期常數時沒問題，但選項一旦變成後台可編輯，這個常數就會跟資料庫脫鉤。改成 `buildRegistrationSchema(options)` 函式，`app/api/register/route.ts` 每次請求都先查一次目前的 `FormOption`，用查到的清單現組一份 schema 再驗證——這保證了「表單上看到的選項」跟「API 實際接受的選項」永遠是同一份資料源，不會有表單給了選項但 API 卻拒絕、或表單沒給的選項 API 卻收的落差。
+- **「最後一個選項不可刪除」是為了保護這個機制，不是隨意加的限制**：`z.enum()` 需要非空的 tuple，如果一個欄位被刪到剩 0 個選項，動態組 schema 這一步會直接壞掉。所以在 admin 的 DELETE 端點加了一個檢查：這個欄位目前選項數量 ≤ 1 就拒絕（400），從寫入端保證「欄位永遠至少有 1 個選項」，比在讀取端（組 schema、渲染表單）處理「空清單」這個邊界情況更簡單、更誠實。
+- **「其他」選項不需要特殊處理**：原本以為要保留「選了『其他』才顯示自由文字欄位」這個行為，結果檢查 `globals.css` 才發現 `.fother--sel { display: block }`，這個自由文字欄位本來就是**一直顯示**、沒有跟著選什麼而顯示/隱藏的 JS 邏輯。所以「其他」在這次的 CMS 裡就是一個普通的、可編輯的選項字串，不需要額外接線——少了一項原本以為會有的複雜度。
+- **後台 API 按欄位參數化，不是 7 組獨立路由**：`app/api/admin/form-options/route.ts`（GET 全部）、`.../[field]/route.ts`（POST 新增）、`.../[field]/[id]/route.ts`（PATCH／DELETE）、`.../[field]/[id]/move/route.ts`（排序），`[field]` 這個 URL 參數會對照 `FormOptionField` enum 驗證，不合法的欄位名稱直接 400。後台畫面同理，`FormOptionsTable.tsx` 一個元件用 `.map()` 把 7 個欄位的區塊畫出來，不是複製貼上 7 份幾乎一樣的 JSX，也不是開 7 個獨立頁面——跟「只做選項清單，不做表單建構器」這個範圍界定一致，UI 也不需要比照議程/講者/夥伴/亮點那樣一個功能一個 nav 連結。
+- **`RegistrationForm.tsx` 改成 props 驅動**：原本直接 `import` `lib/form-options.ts` 的常數，現在改成從 `app/seminar/0915/page.tsx`（server component）查完 `FormOption` 之後往下傳。`lib/form-options.ts` 的常數沒有刪除，改成只給種子腳本讀取，執行期的表單渲染和驗證都不再碰它。
+
+**驗證方式（這次特別針對「動態 schema」這個新機制做了額外測試，不只是照抄前幾次 CMS 的驗證清單）：**
+1. `npm run build` 通過。
+2. 種子跑完後，瀏覽器 `read_page` 讀出報名表單全部 7 個欄位、40 個選項，逐項核對跟原本寫死版本一致（順序、內容都對）。
+3. **實際在瀏覽器裡把整張報名表單填完、按下送出**（不是打 API 模擬，是真的觸發表單的 submit handler），確認成功導向 `/thanks` 並帶著真實的 `event_id`——這一步同時證明了「動態組出來的 schema」跟「畫面實際渲染的選項」是同一份資料，不會表單給了 A 選項但 schema 卻不認得。
+4. 用 CTO session 直接打 API：把 `SIZE` 欄位（4 個選項）刪到剩 1 個，確認前 3 次刪除都成功、第 4 次（最後一個）被拒絕並回 400，訊息清楚說明原因；刪完之後用新增＋排序 API 把 3 個選項原樣復原，最終順序跟原始種子資料逐一核對一致。
+5. 拿一個剛剛被刪掉的選項值（`size: "50人以下"`）直接打 `/api/register`，確認被 400 拒絕、錯誤訊息明確指出是哪個欄位的哪個值不合法，不是 500 也不是被靜默接受。
+6. 用 `curl`（不帶 session cookie）直接打新的 admin API 與新的 admin 頁面，確認都回 307 導去登入頁。
+7. 六支新 route handler 逐一檢查過原始碼，沒有任何一支呼叫 `getCurrentAccount()` 或檢查 `role`，跟前三次 CMS 一樣是「CTO／PR 皆可操作」，這次也是用程式碼檢查代替重複的手動雙角色登入測試。
+8. 測試產生的報名資料（含被拒絕的那筆，實際上因為驗證失敗根本沒有寫入）事後查資料庫確認清乾淨，只留下一筆需要清除、清除後歸零。
+
+**同步更新：** `openspec/changes/add-form-options-cms/tasks.md` 全部項目勾選並補上測試備註（含 `SIZE` 選項 id 在復原後跟原始種子不同、但內容與順序一致，不影響任何東西，因為 `Registration.size` 是純文字欄位不是外鍵）；歸檔為 `2026-08-05-add-form-options-cms`。README 更新：專案說明、v3 更新對照表（表單選項清單 CMS 改為「已實作並驗證」）、專案結構樹（新增 `lib/form-options-db.ts`、`FormOption` model、`form-options` 相關路由與元件）、測試步驟（補 `seed:form-options`，並特別註明漏跑這一步會讓報名功能整個壞掉、不只是畫面空白）、`/admin` 操作說明（新增「內容管理：報名表單選項清單」小節，說明範圍限定與同步機制）、專案進度追蹤表。同步更新 [DEPLOYMENT.md](DEPLOYMENT.md) 的部署步驟／檢查清單，把 `seed:form-options` 補進 seed 指令清單。

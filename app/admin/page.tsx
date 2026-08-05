@@ -28,6 +28,9 @@ export default async function AdminPage() {
           <a className="btn btn--ghost" href="/admin/highlights">
             管理亮點
           </a>
+          <a className="btn btn--ghost" href="/admin/form-options">
+            管理表單選項
+          </a>
           {isCto && (
             <>
               <a className="btn btn--ghost" href="/admin/accounts">

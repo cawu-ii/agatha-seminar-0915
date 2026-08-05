@@ -2,18 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  CONSULT_OPTIONS,
-  DEPT_OPTIONS,
-  INDUSTRY_OPTIONS,
-  SESSION_OPTIONS,
-  SIZE_OPTIONS,
-  STAGE_OPTIONS,
-  TITLE_OPTIONS,
-} from "@/lib/form-options";
+import type { FormOptionsByField } from "@/lib/registration-schema";
 import { readStoredUtmParams, readUtmFromLocation, storeUtmParams } from "@/lib/utm";
 
-export function RegistrationForm() {
+// Option values are admin-editable (openspec: add-form-options-cms) and
+// queried server-side in app/seminar/0915/page.tsx, then passed down here -
+// this component no longer imports the static lib/form-options.ts constants.
+export function RegistrationForm({ options }: { options: FormOptionsByField }) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const [idempotencyKey, setIdempotencyKey] = useState<string | null>(null);
@@ -131,9 +126,9 @@ export function RegistrationForm() {
           所屬部門<span className="req">*</span>
         </label>
         <div className="opts opts--radio">
-          {DEPT_OPTIONS.map((opt) => (
+          {options.dept.map((opt) => (
             <label className="opt" key={opt}>
-              <input type="radio" name="dept" value={opt} required={opt === DEPT_OPTIONS[0]} />
+              <input type="radio" name="dept" value={opt} required={opt === options.dept[0]} />
               <span>{opt}</span>
             </label>
           ))}
@@ -149,7 +144,7 @@ export function RegistrationForm() {
           <option value="" disabled>
             請選擇
           </option>
-          {TITLE_OPTIONS.map((opt) => (
+          {options.title.map((opt) => (
             <option value={opt} key={opt}>
               {opt}
             </option>
@@ -163,9 +158,9 @@ export function RegistrationForm() {
           所屬產業<span className="req">*</span>
         </label>
         <div className="opts opts--radio">
-          {INDUSTRY_OPTIONS.map((opt) => (
+          {options.industry.map((opt) => (
             <label className="opt" key={opt}>
-              <input type="radio" name="industry" value={opt} required={opt === INDUSTRY_OPTIONS[0]} />
+              <input type="radio" name="industry" value={opt} required={opt === options.industry[0]} />
               <span>{opt}</span>
             </label>
           ))}
@@ -181,7 +176,7 @@ export function RegistrationForm() {
           <option value="" disabled>
             請選擇
           </option>
-          {SIZE_OPTIONS.map((opt) => (
+          {options.size.map((opt) => (
             <option value={opt} key={opt}>
               {opt}
             </option>
@@ -209,7 +204,7 @@ export function RegistrationForm() {
           您最感興趣的論壇議程（可複選）<span className="req">*</span>
         </label>
         <div className="opts">
-          {SESSION_OPTIONS.map((opt) => (
+          {options.sessions.map((opt) => (
             <label className="opt" key={opt}>
               <input type="checkbox" name="sessions" value={opt} />
               <span>{opt}</span>
@@ -223,9 +218,9 @@ export function RegistrationForm() {
           貴公司目前 AI 導入階段為何？<span className="req">*</span>
         </label>
         <div className="opts opts--radio">
-          {STAGE_OPTIONS.map((opt) => (
+          {options.stage.map((opt) => (
             <label className="opt" key={opt}>
-              <input type="radio" name="stage" value={opt} required={opt === STAGE_OPTIONS[0]} />
+              <input type="radio" name="stage" value={opt} required={opt === options.stage[0]} />
               <span>{opt}</span>
             </label>
           ))}
@@ -238,7 +233,7 @@ export function RegistrationForm() {
           您希望現場諮詢的議題（可複選）<span className="req">*</span>
         </label>
         <div className="opts">
-          {CONSULT_OPTIONS.map((opt) => (
+          {options.consult.map((opt) => (
             <label className="opt" key={opt}>
               <input type="checkbox" name="consult" value={opt} />
               <span>{opt}</span>

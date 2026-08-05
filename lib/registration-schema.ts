@@ -1,50 +1,59 @@
 import { z } from "zod";
-import {
-  CONSULT_OPTIONS,
-  DEPT_OPTIONS,
-  INDUSTRY_OPTIONS,
-  SESSION_OPTIONS,
-  SIZE_OPTIONS,
-  STAGE_OPTIONS,
-  TITLE_OPTIONS,
-} from "@/lib/form-options";
 
-export const registrationSchema = z.object({
-  idempotencyKey: z.string().min(1),
+// Values for these 7 fields are admin-editable (openspec: add-form-options-cms)
+// and queried fresh per request in app/api/register/route.ts - the schema can
+// no longer be a fixed module-scope constant like it was when the option
+// lists were compile-time constants in lib/form-options.ts.
+export type FormOptionFieldKey = "dept" | "title" | "industry" | "size" | "sessions" | "stage" | "consult";
 
-  name: z.string().min(1, "請填寫姓名"),
-  company: z.string().min(1, "請填寫公司名稱"),
-  taxId: z.string().min(1, "請填寫公司統編"),
+export type FormOptionsByField = Record<FormOptionFieldKey, string[]>;
 
-  dept: z.enum(DEPT_OPTIONS),
-  deptOther: z.string().optional().default(""),
+/** z.enum requires a non-empty tuple - callers must guarantee every field has at least one option (enforced at the admin delete endpoint, see design.md). */
+function nonEmptyTuple(values: string[]): [string, ...string[]] {
+  if (values.length === 0) {
+    throw new Error("FormOption field has zero options - cannot build validation schema");
+  }
+  return [values[0], ...values.slice(1)];
+}
 
-  title: z.enum(TITLE_OPTIONS),
-  titleOther: z.string().optional().default(""),
+export function buildRegistrationSchema(options: FormOptionsByField) {
+  return z.object({
+    idempotencyKey: z.string().min(1),
 
-  industry: z.enum(INDUSTRY_OPTIONS),
-  industryOther: z.string().optional().default(""),
+    name: z.string().min(1, "請填寫姓名"),
+    company: z.string().min(1, "請填寫公司名稱"),
+    taxId: z.string().min(1, "請填寫公司統編"),
 
-  size: z.enum(SIZE_OPTIONS),
+    dept: z.enum(nonEmptyTuple(options.dept)),
+    deptOther: z.string().optional().default(""),
 
-  email: z.string().email("請填寫正確的 Email 格式"),
-  phone: z.string().min(1, "請填寫聯絡電話"),
+    title: z.enum(nonEmptyTuple(options.title)),
+    titleOther: z.string().optional().default(""),
 
-  sessions: z.array(z.enum(SESSION_OPTIONS)).min(1, "請至少選擇一項"),
+    industry: z.enum(nonEmptyTuple(options.industry)),
+    industryOther: z.string().optional().default(""),
 
-  stage: z.enum(STAGE_OPTIONS),
-  stageOther: z.string().optional().default(""),
+    size: z.enum(nonEmptyTuple(options.size)),
 
-  consult: z.array(z.enum(CONSULT_OPTIONS)).min(1, "請至少選擇一項"),
-  consultOther: z.string().optional().default(""),
+    email: z.string().email("請填寫正確的 Email 格式"),
+    phone: z.string().min(1, "請填寫聯絡電話"),
 
-  agreeTerms: z.literal(true, { errorMap: () => ({ message: "請同意個資使用條款" }) }),
-  agreeMarketing: z.boolean().optional().default(false),
+    sessions: z.array(z.enum(nonEmptyTuple(options.sessions))).min(1, "請至少選擇一項"),
 
-  utm_source: z.string().optional().default(""),
-  utm_medium: z.string().optional().default(""),
-  utm_campaign: z.string().optional().default(""),
-  utm_content: z.string().optional().default(""),
-});
+    stage: z.enum(nonEmptyTuple(options.stage)),
+    stageOther: z.string().optional().default(""),
 
-export type RegistrationInput = z.infer<typeof registrationSchema>;
+    consult: z.array(z.enum(nonEmptyTuple(options.consult))).min(1, "請至少選擇一項"),
+    consultOther: z.string().optional().default(""),
+
+    agreeTerms: z.literal(true, { errorMap: () => ({ message: "請同意個資使用條款" }) }),
+    agreeMarketing: z.boolean().optional().default(false),
+
+    utm_source: z.string().optional().default(""),
+    utm_medium: z.string().optional().default(""),
+    utm_campaign: z.string().optional().default(""),
+    utm_content: z.string().optional().default(""),
+  });
+}
+
+export type RegistrationInput = z.infer<ReturnType<typeof buildRegistrationSchema>>;

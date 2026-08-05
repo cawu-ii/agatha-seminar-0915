@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { registrationSchema } from "@/lib/registration-schema";
+import { buildRegistrationSchema } from "@/lib/registration-schema";
+import { loadFormOptions } from "@/lib/form-options-db";
 import { sendConfirmationEmail } from "@/lib/integrations/email";
 import { sendMetaCAPI } from "@/lib/integrations/meta-capi";
 
@@ -11,6 +12,22 @@ export async function POST(req: NextRequest) {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  // Options are admin-editable (openspec: add-form-options-cms) - the schema
+  // is built fresh per request from whatever is currently configured, not a
+  // fixed list baked in at deploy time.
+  let registrationSchema;
+  try {
+    const options = await loadFormOptions();
+    registrationSchema = buildRegistrationSchema(options);
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error("[api/register] failed to load form options", err);
+    return NextResponse.json(
+      { error: "系統暫時無法處理報名，請稍後再試" },
+      { status: 500 }
+    );
   }
 
   const parsed = registrationSchema.safeParse(body);
