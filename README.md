@@ -350,7 +350,7 @@ SQLite 是單一檔案（`prisma/dev.db`），寫入的資料就存在「跑這�
 
 ## 待確認事項（可轉知 Lindy／公關）
 
-1. 感謝頁與確認信文案：既有靜態設計稿載明「7 個工作天內」通知審核結果，惟文件 §8.1/8.2 官方文案未含此句——目前程式碼採用文件官方版本（不載明天數）。
+1. ~~感謝頁與確認信文案「7 個工作天」版本~~——**已確認（2026/08/05）**：採用文件官方版本（不載明天數），與目前程式碼一致，不需改動。
 2. `/admin` 已改為個別帳號登入；目前僅有一組 CTO 帳號（由 `seed:admin` 建立），公關的 PR 角色帳號請於 `/admin/accounts` 建立後交付對應人員，交付方式（帳號密碼如何轉交）尚待確認。
 3. `agatha-ai.com` 之部署與 DNS 設定，已改由主管方負責，本次交付範圍未涵蓋此項；**請轉知主管一項技術限制**：部署主機須為持久化硬碟類型（例如一般 VM／VPS，或 Render／Railway／Fly.io 勾選 persistent volume 的方案），**不能是 Vercel 預設的 serverless 部署**，否則純 SQLite 寫入的報名資料可能遺失（詳見「資料庫架構」一節）。
 
@@ -393,7 +393,7 @@ SQLite 是單一檔案（`prisma/dev.db`），寫入的資料就存在「跑這�
 | 🟠🩷🟣 正式 GA4／Meta／交易信／Ragic 憑證 | `open` | 分別待 Lindy／公關公司／公司財務提供，非工程可自行產生 |
 | `agatha-ai.com` 部署與 DNS | `open` | 須由你方親自操作或授權，本次交付範圍未涵蓋 |
 | PR 角色帳號交接予公關 | `open` | 目前僅有一組 CTO 帳號，需於 `/admin/accounts` 建立 PR 帳號後決定交付方式 |
-| 感謝頁／確認信文案「7 個工作天」版本 | `open` | 待你方或 Lindy 確認採用版本 |
+| 感謝頁／確認信文案「7 個工作天」版本 | `done` | 2026/08/05 已確認採用文件官方版本（不載明天數），與現行程式碼一致 |
 | Phase B：Ragic 即時串接 | `open` | 目前為 no-op stub，待 Ragic API token |
 | 議程後台管理（`/admin/agenda`） | `done` | 對照交接文件 v3 新需求；OpenSpec 規格＋實作皆完成，已於瀏覽器驗證 CRUD／排序／權限，`npm run build` 通過 |
 | 個別帳號＋角色權限（`admin-accounts`） | `done` | 對照交接文件 v3 §6.9；OpenSpec 規格＋實作皆完成，`ADMIN_PASSWORD` 已移除，改為 email／密碼登入 |
