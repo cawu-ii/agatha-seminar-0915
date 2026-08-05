@@ -24,8 +24,10 @@ export function PartnerTable() {
   const [dragId, setDragId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  // silent=true skips the loading flash (used after create/edit/delete/reorder,
+  // where we already have data on screen and don't want the table to blank out).
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     setLoadError(null);
     try {
       const res = await fetch("/api/admin/partners");
@@ -40,7 +42,7 @@ export function PartnerTable() {
       setLoadError("連線失敗，請確認網路連線後重試。");
       setItems([]);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, []);
 
@@ -63,7 +65,7 @@ export function PartnerTable() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ids: next.map((i) => i.id) }),
       });
-      await load();
+      await load(true);
       setBusyId(null);
     },
     [items, load]
@@ -101,7 +103,7 @@ export function PartnerTable() {
       return;
     }
     setNewForm(EMPTY_FORM);
-    await load();
+    await load(true);
   }
 
   function startEdit(item: Partner) {
@@ -129,13 +131,13 @@ export function PartnerTable() {
       return;
     }
     setEditingId(null);
-    await load();
+    await load(true);
   }
 
   async function deleteItem(id: string) {
     setBusyId(id);
     await fetch(`/api/admin/partners/${id}`, { method: "DELETE" });
-    await load();
+    await load(true);
     setBusyId(null);
   }
 
