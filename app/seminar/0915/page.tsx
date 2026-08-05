@@ -18,6 +18,12 @@ export default async function SeminarLandingPage() {
   const agendaItems = await prisma.agendaItem
     .findMany({ orderBy: { sortOrder: "asc" } })
     .catch(() => []);
+  // Speakers/partners/highlights are PR-editable via /admin (openspec:
+  // add-content-cms), same pattern as the agenda query above.
+  const highlights = await prisma.highlight.findMany({ orderBy: { sortOrder: "asc" } }).catch(() => []);
+  const speakers = await prisma.speaker.findMany({ orderBy: { sortOrder: "asc" } }).catch(() => []);
+  const partners = await prisma.partner.findMany({ orderBy: { sortOrder: "asc" } }).catch(() => []);
+  const highlightLabels = ["一", "二", "三", "四", "五", "六", "七", "八", "九", "十"];
 
   return (
     <>
@@ -181,38 +187,13 @@ export default async function SeminarLandingPage() {
             <h2>活動亮點</h2>
           </div>
           <div className="grid2">
-            <article className="glass hl reveal">
-              <span className="hl__no">亮點一</span>
-              <h3 className="hl__t">資料不出廠的雲地整合平台</h3>
-              <p className="hl__b">
-                探討開放中立、不綁單一 ERP 與模型的 Agentic AI 平台，如何在 SaaS、私有雲到地端三種部署下，把 AI
-                嵌進「產、銷、人、發、財」五大節點，讓企業在資料主權不外流的前提下，完成規模化導入。
-              </p>
-            </article>
-            <article className="glass hl reveal">
-              <span className="hl__no">亮點二</span>
-              <h3 className="hl__t">高科技製造的 AI 資安與可管理工作流</h3>
-              <p className="hl__b">
-                高科技製造導入 AI Agent，資安與流程兩道關卡並存：員工私下用 AI、Agent
-                自主決策，讓資料防線與破口同步改變。本場聚焦如何把每個 Agent
-                設計成可交付、可衡量、可管理的工作流，行為可視可稽核，收進管得動的治理架構。
-              </p>
-            </article>
-            <article className="glass hl reveal">
-              <span className="hl__no">亮點三</span>
-              <h3 className="hl__t">從單點試用到全員上手的真實路徑</h3>
-              <p className="hl__b">
-                深度剖析製造業導入 Agentic AI 的真實路徑：場景怎麼選、導入卡在哪、生產力提升多少、拿回什麼。從一家 40
-                年製造企業的親身佈局，到多場景的實戰回顧，拆解從單點試用到全員上手的真實代價與回報。
-              </p>
-            </article>
-            <article className="glass hl reveal">
-              <span className="hl__no">亮點四</span>
-              <h3 className="hl__t">降低轉型第一道門檻的政府資源</h3>
-              <p className="hl__b">
-                盤點製造業 AI 轉型可申請的政府輔導與補助資源，從評估、申請到執行逐步說明，協助企業把「要不要投入」的門檻先降下來，搭配研究法人的產業輔導能量，讓轉型的第一步走得更穩、更有依據。
-              </p>
-            </article>
+            {highlights.map((h, idx) => (
+              <article className="glass hl reveal" key={h.id}>
+                <span className="hl__no">亮點{highlightLabels[idx] ?? idx + 1}</span>
+                <h3 className="hl__t">{h.title}</h3>
+                <p className="hl__b">{h.body}</p>
+              </article>
+            ))}
           </div>
         </div>
       </section>
@@ -290,103 +271,27 @@ export default async function SeminarLandingPage() {
             <h2>講者陣容</h2>
           </div>
           <div className="grid3s">
-            <article className="glass spk reveal">
-              <div className="spk__ph">
-                <img src="/images/asset-cd6e2c579d.jpg" alt="石浩吉" loading="lazy" />
-              </div>
-              <div className="spk__body">
-                <div className="spk__nm">石浩吉</div>
-                <div className="spk__ti">今晧實業暨湧現智庫董事長</div>
-                <p className="spk__bio">
-                  帶領今晧從 40 年連接線製造，跨足 AI 軟硬體生態系佈局。以經營者視角，分享傳統製造企業啟動 AI
-                  轉型的戰略思路與親身實戰。
-                </p>
-              </div>
-            </article>
-            <article className="glass spk reveal">
-              <div className="spk__ph">
-                <img src="/images/asset-ed714b886a.jpg" alt="林書琦" loading="lazy" />
-              </div>
-              <div className="spk__body">
-                <div className="spk__nm">林書琦</div>
-                <div className="spk__ti">湧現智庫商務開發副總</div>
-                <p className="spk__bio">
-                  第一線協助製造業導入 Agatha 的商務負責人。將拆解雲地整合平台如何串接 ERP、驅動「產、銷、人、發、財」五大流程。
-                </p>
-              </div>
-            </article>
-            <article className="glass spk reveal">
-              <div className="spk__ph">
-                <img src="/images/asset-d7d77edfc5.jpg" alt="傅子維" loading="lazy" />
-              </div>
-              <div className="spk__body">
-                <div className="spk__nm">傅子維</div>
-                <div className="spk__ti">湧現智庫技術長</div>
-                <p className="spk__bio">
-                  主導 Agatha 平台架構，專注非硬編碼的 Agent 架構與資料治理。將示範如何設計可被交付、可衡量、可管理的 AI
-                  Agent 工作流。
-                </p>
-              </div>
-            </article>
-            <article className="glass spk reveal">
-              <div className="spk__ph spk__ph--soon">
-                <span>照片待提供</span>
-              </div>
-              <div className="spk__body">
-                <div className="spk__nm">陳伊誠</div>
-                <div className="spk__ti">金屬工業研究發展中心 產業創新服務組組長</div>
-                <p className="spk__bio">熟悉製造業創新輔導資源，將盤點企業 AI 轉型可申請的政府補助與輔導方案，協助企業降低轉型的第一道門檻。</p>
-              </div>
-            </article>
-            <article className="glass spk reveal">
-              <div className="spk__ph">
-                <img src="/images/asset-e0a7f92abb.jpg" alt="廖志偉 博士（Dr. Frank Liao）" loading="lazy" />
-              </div>
-              <div className="spk__body">
-                <div className="spk__nm">廖志偉 博士（Dr. Frank Liao）</div>
-                <div className="spk__ti">AIFT 商務合作總監</div>
-                <p className="spk__bio">
-                  Frank
-                  在企業數位轉型與技術創新領域有超過十年的實戰經驗，長期協助金融、保險與製造等高度監管產業導入創新技術。曾任職於國泰金控、國泰人壽與台灣王道銀行，專注於創新專案推進、系統落地規劃與風險控管等。目前在
-                  AIFT 推動生成式 AI 與 AI Agent 的資安解決方案 Vulcan，協助金融、製造及其他各產業，在導入 AI
-                  的同時兼顧安全與合規。
-                </p>
-              </div>
-            </article>
-            <article className="glass spk reveal">
-              <div className="spk__ph">
-                <img src="/images/asset-8caa1bf6e1.jpg" alt="劉涵竹" loading="lazy" />
-              </div>
-              <div className="spk__body">
-                <div className="spk__nm">劉涵竹</div>
-                <div className="spk__ti">主持人</div>
-                <p className="spk__bio">資深財經主播、主持人，歷任非凡新聞、三立 iNEWS、中天、東森財經新聞台，以財經專業串接全場議程與 Panel 對談。</p>
-              </div>
-            </article>
-            <article className="glass spk reveal spk--tbd">
-              <div className="spk__ph spk__ph--tbd">
-                <span>待確認</span>
-              </div>
-              <div className="spk__body">
-                <div className="spk__nm">
-                  優達科技 <span className="badge">待確認</span>
+            {speakers.map((s) => (
+              <article className={`glass spk reveal${!s.confirmed ? " spk--tbd" : ""}`} key={s.id}>
+                <div
+                  className={`spk__ph${!s.confirmed ? " spk__ph--tbd" : !s.photoUrl ? " spk__ph--soon" : ""}`}
+                >
+                  {s.photoUrl ? (
+                    <img src={s.photoUrl} alt={s.name} loading="lazy" />
+                  ) : (
+                    <span>{s.confirmed ? "照片待提供" : "待確認"}</span>
+                  )}
                 </div>
-                <div className="spk__ti">講者待確認</div>
-                <p className="spk__bio">以製造業第一線導入者身分現身說法，分享 Agentic AI 從單點試用到全員上手的真實經驗。</p>
-              </div>
-            </article>
-            <article className="glass spk reveal spk--tbd">
-              <div className="spk__ph spk__ph--tbd">
-                <span>待確認</span>
-              </div>
-              <div className="spk__body">
-                <div className="spk__nm">
-                  資策會 <span className="badge">待確認</span>
+                <div className="spk__body">
+                  <div className="spk__nm">
+                    {s.name}
+                    {!s.confirmed && <span className="badge">待確認</span>}
+                  </div>
+                  <div className="spk__ti">{s.title}</div>
+                  <p className="spk__bio">{s.bio}</p>
                 </div>
-                <div className="spk__ti">講者待確認</div>
-                <p className="spk__bio">從產業推動視角，補充製造業 AI 導入的整體觀察與資源觀點。</p>
-              </div>
-            </article>
+              </article>
+            ))}
           </div>
         </div>
       </section>
@@ -398,7 +303,9 @@ export default async function SeminarLandingPage() {
             <h2>合作夥伴</h2>
             <p className="sec__lead">本次論壇講者單位與攤位夥伴（依序排列，非代表排名）。</p>
           </div>
-          <PartnerWall />
+          <PartnerWall
+            partners={partners.map((p) => ({ id: p.id, name: p.name, desc: p.description, img: p.logoUrl }))}
+          />
         </div>
       </section>
 

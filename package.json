@@ -12,7 +12,10 @@
     "db:studio": "prisma studio",
     "export:registrations": "tsx scripts/export-registrations.ts",
     "seed:agenda": "tsx prisma/seed-agenda.ts",
-    "seed:admin": "tsx prisma/seed-admin.ts"
+    "seed:admin": "tsx prisma/seed-admin.ts",
+    "seed:speakers": "tsx prisma/seed-speakers.ts",
+    "seed:partners": "tsx prisma/seed-partners.ts",
+    "seed:highlights": "tsx prisma/seed-highlights.ts"
   },
   "dependencies": {
     "@libsql/client": "^0.17.4",

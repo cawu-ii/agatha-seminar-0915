@@ -19,6 +19,15 @@ export default async function AdminPage() {
           <a className="btn btn--ghost" href="/admin/agenda">
             管理議程
           </a>
+          <a className="btn btn--ghost" href="/admin/speakers">
+            管理講者
+          </a>
+          <a className="btn btn--ghost" href="/admin/partners">
+            管理夥伴
+          </a>
+          <a className="btn btn--ghost" href="/admin/highlights">
+            管理亮點
+          </a>
           {isCto && (
             <>
               <a className="btn btn--ghost" href="/admin/accounts">

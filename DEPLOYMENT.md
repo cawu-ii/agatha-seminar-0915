@@ -83,11 +83,17 @@ npx prisma generate
 npx prisma migrate deploy
 
 # 5) 建立第一個 CTO 帳號（讀取 .env 裡的 INITIAL_CTO_EMAIL / INITIAL_CTO_PASSWORD）
+#    ***這一步務必要跑，不要跳過*** —— 沒跑這步，/admin 會顯示「帳號或密碼錯誤」，
+#    看起來像密碼設錯了，其實是資料庫裡根本沒有任何帳號可以比對。
 npm run seed:admin
 
-# 6) 灌入議程初始資料（否則落地頁議程區塊會是空的，不是壞掉，但正式上線
-#    前應該要有內容）
+# 6) 灌入內容初始資料（議程／講者／合作夥伴／活動亮點）
+#    ***這四行也務必都要跑，不要跳過*** —— 沒跑，對應區塊在落地頁上會是空白
+#    （不是壞掉，是還沒有資料），常見的漏跑症狀就是「頁面能開但某一區塊沒內容」
 npm run seed:agenda
+npm run seed:speakers
+npm run seed:partners
+npm run seed:highlights
 
 # 7) build 正式版本
 npm run build
@@ -100,6 +106,8 @@ npm run start
 ```
 
 第 8 步若 `curl` 沒有回應或報資料庫錯誤（`no such table`），代表第 4 步的 migrate 沒有成功套用，回去檢查 `DATABASE_URL` 指到的路徑是否有寫入權限。
+
+**第 5、6 步是最容易漏跑的兩步**（先前部署時就各漏過一次）：`migrate deploy` 只會建表結構，不會塞資料進去；表是空的，`/admin` 登不進去、落地頁對應區塊沒內容，但都不會報錯讓你注意到——`npm run build` 跟 `curl` 健康檢查都會正常通過。上線前務必照著「[上線前自我檢查清單](#上線前自我檢查清單)」實際登入一次、看一次落地頁每個區塊，而不是只看 build 有沒有過。
 
 ---
 
@@ -141,7 +149,7 @@ pm2 save
 
 在告知主管方「可以掛網域了」之前，先在 EC2 本機（或透過 SSH port-forward：`ssh -L 3000:localhost:3000 <你的 EC2>`，再用自己電腦瀏覽器連 `http://localhost:3000`）走過一次：
 
-- [ ] `/seminar/0915` 落地頁能正常開啟，議程區塊有內容（不是空白）
+- [ ] `/seminar/0915` 落地頁能正常開啟，議程／講者／合作夥伴／活動亮點四個區塊都有內容（不是空白）——這四個各對應一個 seed 指令，任一個忘記跑就會有一區是空的
 - [ ] 填一筆測試報名資料送出，能正常導向 `/seminar/0915/thanks`
 - [ ] 用 `INITIAL_CTO_EMAIL` / `INITIAL_CTO_PASSWORD` 登入 `/admin`，能看到剛剛那筆測試資料
 - [ ] `/admin` 頁面看得到「帳號管理」「匯出 Excel」兩個按鈕（代表登入的是 CTO 角色，不是誤植成 PR）

@@ -125,3 +125,44 @@ model AdminAuditLog {
   @@index([accountId])
   @@index([createdAt])
 }
+
+// PR/CTO-editable content blocks (CTO handoff doc v3 §6.2 "後台 CMS" -
+// speakers/partners/highlights slice, see openspec/changes/add-content-cms).
+// Same shape/pattern as AgendaItem: explicit sortOrder, plain-text fields,
+// no file upload yet - photoUrl/logoUrl are pasted URLs (see design.md).
+model Speaker {
+  id        String   @id @default(uuid())
+  name      String
+  title     String
+  bio       String
+  photoUrl  String?
+  confirmed Boolean  @default(true)
+  sortOrder Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sortOrder])
+}
+
+model Partner {
+  id          String   @id @default(uuid())
+  name        String
+  description String
+  logoUrl     String
+  sortOrder   Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([sortOrder])
+}
+
+model Highlight {
+  id        String   @id @default(uuid())
+  title     String
+  body      String
+  sortOrder Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sortOrder])
+}

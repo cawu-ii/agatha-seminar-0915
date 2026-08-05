@@ -8,7 +8,7 @@
 
 > 對應交接文件《Agatha_Seminar_Landing_Page報名系統與追蹤_CTO交接文件_0729》，實作文件 §0 指派予 CTO／工程之範圍：**報名頁與自建後台、GTM 埋設、GA4／Meta 像素整合、交易信 API 串接與網域驗證、感謝頁、UTM 落庫、後台權限開放予公關**。
 
-規格文件採 OpenSpec 管理，現行 capability spec 之單一真相在 [`openspec/specs/`](openspec/specs/)；已完成之 change 歸檔於 [`openspec/changes/archive/`](openspec/changes/archive/)（含完整 proposal／design／specs／tasks 紀錄，含議程後台管理、個別帳號＋角色權限、Excel 匯出等對照交接文件 v3／0804 新需求之規格，詳見下方）。本 README 為系統操作手冊，完整 phase-by-phase 開發歷程與遭遇問題記錄於 [`devlog.md`](devlog.md)；獨立 QA 測試紀錄於 [`qa/test-log-2026-08-04.md`](qa/test-log-2026-08-04.md)。
+規格文件採 OpenSpec 管理，現行 capability spec 之單一真相在 [`openspec/specs/`](openspec/specs/)；已完成之 change 歸檔於 [`openspec/changes/archive/`](openspec/changes/archive/)（含完整 proposal／design／specs／tasks 紀錄，含議程後台管理、個別帳號＋角色權限、Excel 匯出、講者／夥伴／亮點 CMS 等對照交接文件 v3／0804 新需求之規格，詳見下方）。本 README 為系統操作手冊，完整 phase-by-phase 開發歷程與遭遇問題記錄於 [`devlog.md`](devlog.md)；獨立 QA 測試紀錄於 [`qa/test-log-2026-08-04.md`](qa/test-log-2026-08-04.md)。
 
 **目前狀態：本機／staging 已通過獨立 QA 驗證（20 Pass、3 Blocked、0 Fail，詳見下方「已完成測項與待驗證測項」），尚未部署至 production 或 agatha-ai.com。**
 
@@ -41,6 +41,7 @@ Next.js（App Router + TypeScript）全端專案：
 - `/seminar/0915/thanks` — 感謝頁（文件 §8.2 官方文案，含加入行事曆、觸發 `registration_submit`）
 - `/admin` — CTO／公關共用之報名後台，採個別帳號＋角色（`CTO`／`PR`）登入，非共用密碼
 - `/admin/accounts` — 帳號管理（CTO 專屬，新增／停用帳號、重設密碼）
+- `/admin/agenda`、`/admin/speakers`、`/admin/partners`、`/admin/highlights` — 內容管理（議程／講者／合作夥伴／活動亮點），CTO／公關皆可操作，儲存後落地頁下次載入即反映
 - `/api/register` — 報名寫入 API（驗證 → 寫庫 → 非同步寄信／推送 Meta CAPI）
 - `scripts/export-registrations.ts` + `/api/export`（CLI／權杖）與 `/api/admin/export`（`/admin` 內建按鈕，CTO 角色限定）— 名單匯出，`.xlsx` 格式，兩條路徑皆僅 CTO 可達，動作記錄於稽核紀錄
 
@@ -74,12 +75,13 @@ Next.js（App Router + TypeScript）全端專案：
 | **議程可由後台管理** | 公關可從 `/admin/agenda` 新增／編輯／刪除／排序議程，即時反映到落地頁（取代原本寫死的 JSX） | ✅ **已實作並驗證**（見下方「議程管理」） |
 | **公關改為個別帳號（非共用密碼）** | v3 §6.9 明文要求「給公關個別帳號（勿共用一組）」，與原 V1 單一共用密碼設計衝突 | ✅ **已實作並驗證**（見下方「帳號管理」；`ADMIN_PASSWORD` 已移除） |
 | **名單匯出改 Excel（.xlsx）** | 原為 CSV，且需權限控管並記錄 log | ✅ **已實作並驗證**（CTO 角色限定，動作寫入稽核紀錄，見下方「名單匯出」） |
+| **CMS 範圍擴及講者／合作夥伴／活動亮點** | 議程僅為第一階段，v3 §6.2 要求擴及更多區塊 | ✅ **已實作並驗證**（`/admin/speakers`、`/admin/partners`、`/admin/highlights`，見下方「內容管理」） |
 | 新子網域 `2026-forum.agatha-ai.com` | 純部署/DNS 層級，路由本身相對路徑，程式碼不受影響 | 不需工程動作 |
 | GA4 已開通（`G-L8NZJXKM3J`） | 仍缺 GTM 容器 ID（`NEXT_PUBLIC_GTM_ID`），此項本身不影響程式碼 | 僅供知悉 |
 | UTM 新增「合作夥伴」來源、不分波段 | `utm_source`/`utm_content` 本為自由字串，非固定選項 | ✅ 已相容，無需改動 |
-| CMS 範圍擴及 Banner／講者／夥伴／表單欄 | 議程僅為第一階段 | 未處理，待需要時另開 change |
+| CMS 範圍擴及 Banner、表單選項清單 | 需要檔案上傳基礎設施（Banner）或另計範圍（表單） | 未處理，各自另開 change（見下方「後續規劃」） |
 
-**目前狀態：議程管理、個別帳號、Excel 匯出三項已完成並歸檔；CMS 其餘區塊（Banner／講者／夥伴／表單欄選項）與新子網域部署尚未動工**，避免一次把不相關的能力全部混進同一個 change。
+**目前狀態：議程管理、個別帳號、Excel 匯出、講者／夥伴／亮點 CMS 五項已完成並歸檔；CMS 剩餘區塊（Banner、表單欄選項清單）與新子網域部署尚未動工**，避免一次把不相關的能力全部混進同一個 change。
 
 ## 角色與分工
 
@@ -136,7 +138,7 @@ seminar_apply/
 │  │  └─ thanks/page.tsx                       # 🔵 感謝頁
 │  ├─ admin/
 │  │  ├─ page.tsx                              # 🔵 後台列表頁（依角色顯示帳號管理／匯出按鈕）
-│  │  ├─ agenda/page.tsx                       # 🔵 議程管理頁
+│  │  ├─ agenda/page.tsx · speakers/page.tsx · partners/page.tsx · highlights/page.tsx  # 🔵 內容管理，CTO／PR 皆可用
 │  │  ├─ accounts/page.tsx                     # 🔵 帳號管理頁（CTO 專屬，頁面層 redirect 防 PR 直接進入）
 │  │  └─ login/page.tsx                        # 🔵 後台登入頁（email + 密碼）
 │  └─ api/
@@ -145,23 +147,23 @@ seminar_apply/
 │     └─ admin/
 │        ├─ login/route.ts · logout/route.ts
 │        ├─ registrations/route.ts · registrations/[id]/review/route.ts · registrations/[id]/resend/route.ts
-│        ├─ agenda/route.ts · agenda/[id]/route.ts · agenda/[id]/move/route.ts
+│        ├─ agenda/route.ts · speakers/route.ts · partners/route.ts · highlights/route.ts（各自 + [id]/route.ts + [id]/move/route.ts）
 │        ├─ accounts/route.ts · accounts/[id]/route.ts  # 🔵 CTO-only：帳號列表／新增／停用／重設密碼
 │        └─ export/route.ts                     # 🔵 CTO 角色限定，session 驗證，寫入稽核紀錄
-├─ components/                                 # RegistrationForm, ConsentBanner, GtmLoader, AdminTable, AgendaTable, AccountsTable, AddToCalendar...
+├─ components/                                 # RegistrationForm, ConsentBanner, GtmLoader, AdminTable, AgendaTable, SpeakerTable, PartnerTable, HighlightTable, PartnerWall, AccountsTable, AddToCalendar...
 ├─ lib/
 │  ├─ prisma.ts · session.ts · auth.ts · gtm.ts · utm.ts
 │  ├─ export-workbook.ts                        # `.xlsx` 產生邏輯，CLI 腳本與兩支匯出 API 共用
 │  ├─ form-options.ts · registration-schema.ts  # 表單選項與驗證邏輯，前後端共用
 │  └─ integrations/                             # 🟠🩷🟣 email.ts · meta-capi.ts · ragic.ts（無憑證即 no-op + log）
 ├─ prisma/
-│  ├─ schema.prisma                             # Registration、AgendaItem、AdminAccount、AdminAuditLog model
-│  ├─ seed-agenda.ts                            # 議程種子資料（`npm run seed:agenda`，只需手動跑一次）
+│  ├─ schema.prisma                             # Registration、AgendaItem、AdminAccount、AdminAuditLog、Speaker、Partner、Highlight model
+│  ├─ seed-agenda.ts · seed-speakers.ts · seed-partners.ts · seed-highlights.ts  # 內容種子資料，各自對應一個 npm script，只需手動跑一次
 │  └─ seed-admin.ts                             # 建立第一個 CTO 帳號（`npm run seed:admin`，全新環境必跑）
 ├─ scripts/export-registrations.ts              # 🔵 CTO 專用匯出腳本，輸出 .xlsx
 ├─ middleware.ts                                # 保護 /admin、/api/admin
 ├─ openspec/
-│  ├─ specs/                                    # 現行 capability spec 單一真相（含 agenda-management）
+│  ├─ specs/                                    # 現行 capability spec 單一真相（含 agenda-management、speakers-cms、partners-cms、highlights-cms）
 │  └─ changes/archive/                          # 已完成並歸檔之 change（含完整 proposal/design/specs/tasks 紀錄）
 ├─ qa/test-log-2026-08-04.md                    # 獨立 QA 測試紀錄
 ├─ .env / .env.example
@@ -193,8 +195,12 @@ cp .env.example .env
 # 2) 建立資料庫結構（prisma/dev.db 也被 .gitignore 排除，clone 下來是空的）
 npx prisma migrate dev
 
-# 3) 灌入議程初始資料（AgendaItem 表建好後是空的；不跑這步落地頁議程區塊會是空白，不是壞掉）
+# 3) 灌入內容初始資料（AgendaItem／Speaker／Partner／Highlight 表建好後都是空的；
+#    不跑這幾步，落地頁對應區塊會是空白，不是壞掉）
 npm run seed:agenda
+npm run seed:speakers
+npm run seed:partners
+npm run seed:highlights
 
 # 4) 建立第一個 CTO 帳號（AdminAccount 表建好後是空的；不跑這步無法登入 /admin，已有帳號時會自動跳過）
 npm run seed:admin
@@ -202,7 +208,7 @@ npm run seed:admin
 npm run dev              # http://localhost:3000
 ```
 
-漏掉第 1 步：伺服器啟動或登入時會直接噴 `SESSION_SECRET is not configured`；漏掉 `INITIAL_CTO_EMAIL`／`INITIAL_CTO_PASSWORD` 則第 4 步會報錯要求先設定。漏掉第 2 步：畫面看起來正常，但 `/admin` 或報名送出會回傳資料庫錯誤（`no such table`），且**目前版本會在畫面上直接顯示這則錯誤訊息**，不會再是一片空白的當機畫面。漏掉第 3 步：不會報錯，落地頁議程區塊單純沒有任何內容（空清單本就是合法狀態，見 `agenda-management` spec），從 `/admin/agenda` 手動新增即可補上，或事後再跑一次 `npm run seed:agenda`（已有資料時會自動跳過、不會重複塞資料）。漏掉第 4 步：`/admin/login` 輸入任何帳密都會是「帳號或密碼錯誤」，因為資料庫裡還沒有任何帳號可以比對。
+漏掉第 1 步：伺服器啟動或登入時會直接噴 `SESSION_SECRET is not configured`；漏掉 `INITIAL_CTO_EMAIL`／`INITIAL_CTO_PASSWORD` 則第 4 步會報錯要求先設定。漏掉第 2 步：畫面看起來正常，但 `/admin` 或報名送出會回傳資料庫錯誤（`no such table`），且**目前版本會在畫面上直接顯示這則錯誤訊息**，不會再是一片空白的當機畫面。漏掉第 3 步（四個 seed 指令中任一個）：不會報錯，落地頁對應區塊單純沒有任何內容（空清單本就是合法狀態，見各 CMS capability spec），從對應的 `/admin/*` 頁面手動新增即可補上，或事後再跑一次同一個 seed 指令（已有資料時會自動跳過、不會重複塞資料）。漏掉第 4 步：`/admin/login` 輸入任何帳密都會是「帳號或密碼錯誤」，因為資料庫裡還沒有任何帳號可以比對。
 
 ---
 
@@ -240,6 +246,16 @@ npm run dev              # http://localhost:3000
 - 排序用上下箭頭調整，不支援拖拉（議程項目數量少，上下移動已足夠）。
 - 儲存後，落地頁 `/seminar/0915` 下次載入即反映變更——該頁面已設定為動態渲染（`force-dynamic`），不會有舊版被靜態快取的問題。
 - CTO／PR 兩角色皆可管理議程，與帳號管理（CTO 專屬）分開。
+
+### 內容管理：講者／合作夥伴／活動亮點（`/admin/speakers`、`/admin/partners`、`/admin/highlights`）
+
+比照議程管理的作法，落地頁的講者陣容、合作夥伴牆、活動亮點卡片同樣可由後台管理，CTO／PR 皆可操作：
+
+- **講者管理**：姓名、職稱、簡介、照片網址（可留空）、是否已確認。未確認的講者會在落地頁顯示「待確認」標記；已確認但尚未提供照片的講者顯示「照片待提供」——這對應原設計稿裡的兩種不同狀態，不是同一件事。
+- **合作夥伴管理**：名稱、Logo 網址、點擊 Logo 後彈出的介紹文字。
+- **活動亮點管理**：標題與內容，落地頁會自動依序標上「亮點一」「亮點二」……不需要自己輸入編號。
+- 三者皆支援上下箭頭排序，儲存後落地頁下次載入即反映（與議程同一套機制）。
+- **圖片／Logo 目前只能貼網址，還沒有檔案上傳功能**：這個專案還沒有檔案上傳的基礎建設，需要工程協助把圖片放到 `/public/images/` 後提供路徑，或使用外部圖床連結。之後如果要做真正的上傳功能，會跟 Banner 上傳一起處理（見下方「後續規劃」）。
 
 ### 帳號管理（`/admin/accounts`，CTO 專屬）
 
@@ -367,4 +383,5 @@ SQLite 是單一檔案（`prisma/dev.db`），寫入的資料就存在「跑這�
 | 議程後台管理（`/admin/agenda`） | `done` | 對照交接文件 v3 新需求；OpenSpec 規格＋實作皆完成，已於瀏覽器驗證 CRUD／排序／權限，`npm run build` 通過 |
 | 個別帳號＋角色權限（`admin-accounts`） | `done` | 對照交接文件 v3 §6.9；OpenSpec 規格＋實作皆完成，`ADMIN_PASSWORD` 已移除，改為 email／密碼登入 |
 | Excel 匯出（`.xlsx`，角色限定＋稽核紀錄）（`data-export` 更新） | `done` | 對照交接文件 v3；CSV 改為 `.xlsx`，PR 角色不可達，動作記錄稽核紀錄 |
-| v3 其餘新需求（CMS 其他區塊、新子網域） | `open` | 已記錄於「交接文件 v3 更新對照」，尚未排入開發，需個別確認優先順序 |
+| 講者／夥伴／亮點 CMS（`/admin/speakers`、`/admin/partners`、`/admin/highlights`） | `done` | 對照交接文件 v3 §6.2；OpenSpec 規格＋實作皆完成，CTO／PR 皆可操作，已於瀏覽器驗證 CRUD／排序，`npm run build` 通過；圖片僅支援貼網址，尚無上傳功能（見下方） |
+| v3 其餘新需求（Banner 上傳、表單欄選項清單、新子網域） | `open` | 已記錄於「交接文件 v3 更新對照」，尚未排入開發，需個別確認優先順序 |

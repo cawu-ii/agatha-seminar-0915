@@ -401,3 +401,24 @@
 **OpenSpec archive 過程踩的坑：** `openspec archive add-admin-accounts -y` 連續失敗三次，都是同一類錯誤——MODIFIED requirement 的標題／scenario 名稱寫成新的措辭，但 OpenSpec 要求 MODIFIED 區塊的標題要跟現有 spec **逐字相同**（空白不敏感），且不能讓現有 scenario 名稱在新版本裡憑空消失（validator 會擋，因為這代表可能悄悄遺失了原本的驗證情境）。修法固定：改標題／scenario 名稱時，先用 `openspec validate --strict` 看錯誤訊息裡指名的「原文」，把它逐字放回去，新的差異用「新增一個 scenario」的方式表達，而不是「把舊的改名」。`admin-console`、`data-export` 兩份 delta spec 都是這樣修好的，修完 `validate --strict` 過、`archive` 成功，`admin-accounts` capability 正式進入 `openspec/specs/`，`admin-console`／`data-export` 也同步更新。
 
 **同步更新：** `openspec/changes/add-admin-accounts/tasks.md` 全部項目勾選並補上測試備註；歸檔為 `2026-08-05-add-admin-accounts`。README 多處更新：專案說明、與原型 HTML 差異表、v3 更新對照表（帳號＋匯出兩項改為「已實作並驗證」）、角色與分工、系統資料流圖、專案結構樹、測試步驟（補 `seed:admin`、拿掉 `ADMIN_PASSWORD`）、`.env` 變數說明表、`/admin` 操作說明（改寫為個別帳號，新增「帳號管理」小節）、名單匯出說明（CSV 改 `.xlsx`，補第二條 `/admin` 內建按鈕路徑）、§12 測試表（匯出權限隔離改成角色判斷、新增稽核紀錄測項）、待確認事項、後續規劃、專案進度追蹤表（新增帳號管理／Excel 匯出／稽核紀錄三個 `done` 項目，拿掉已完成的 Phase B 項目）。
+
+## Phase 26 — 講者／合作夥伴／活動亮點 CMS 實作（`add-content-cms` 落地）（2026-08-05）
+
+**做了什麼：** v3 比對表排定要做的三項 CMS 區塊（講者、合作夥伴、活動亮點），完全比照 `agenda-management` 已經驗證過的模式——同一組 admin session（CTO／PR 皆可操作，不像帳號管理／匯出限定 CTO）、`sortOrder` 上下箭頭排序、落地頁直接查 Prisma、首次上線用種子資料填入現有內容。三個實體放進同一個 change，因為它們是同一類問題的三次重複，拆成三個 change 只會製造不必要的流程開銷。
+
+- **資料模型**：新增 `Speaker`（name／title／bio／photoUrl?／confirmed／sortOrder）、`Partner`（name／description／logoUrl／sortOrder）、`Highlight`（title／body／sortOrder），三個 model 一次 `npx prisma migrate dev --name add_content_cms` 解決，不分開 migrate（同批上線，沒有分批的理由）。
+- **設計決策：圖片只能貼網址，不做檔案上傳**：這個專案目前完全沒有檔案上傳的基礎建設（儲存、驗證、大小限制都沒有），而 v3 待辦裡另外有一項「Banner 上傳」明確需要同一套基礎建設。與其在這次順手做一個陽春版上傳擠進來，design.md 明確把這個決定記下來：圖片／Logo 一律是文字網址欄位，PR 自己找地方放好圖片（工程協助丟到 `/public/images/`，或用外部圖床），真正的上傳能力等 Banner 那個 change 一起做，不要兩邊各做一半、互相打架。
+- **講者的「已確認」欄位吸收了原本三種視覺狀態**：原始寫死的頁面其實有三種講者卡片樣式——已確認有照片、已確認但「照片待提供」、完全「待確認」帶徽章。這次沒有為此加第三個欄位，而是讓 `confirmed`（boolean）跟 `photoUrl`（nullable）兩個獨立欄位組合出三種狀態：`confirmed=true` 且有 `photoUrl` → 正常卡片；`confirmed=true` 但 `photoUrl` 是 null → 「照片待提供」；`confirmed=false` → 「待確認」徽章樣式，不管有沒有照片。這是內容簡化，不是漏做功能——公關兩個欄位打勾/填空就能表達所有原本的狀態組合。
+- **`PartnerWall.tsx` 從硬編碼陣列改成 props 驅動**：這個元件是 `"use client"`（要用 `useState`做點擊 Logo 彈窗），沒辦法自己 `await prisma`，所以維持原本的元件介面設計，只是把資料來源從模組層級的常數陣列改成從 server component（`app/seminar/0915/page.tsx`）查完 Prisma 之後往下傳的 prop——跟 `agendaItems` 已經在用的模式完全一樣，只是這次多一層「client 元件本身不能查資料庫」需要繞過去。
+- **後台 API／UI**：三組各自的 `route.ts`（GET/POST）、`[id]/route.ts`（PATCH/DELETE）、`[id]/move/route.ts`（上下排序），連同對應的 `SpeakerTable.tsx`／`PartnerTable.tsx`／`HighlightTable.tsx`／`app/admin/{speakers,partners,highlights}/page.tsx`，逐字比照 `AgendaTable.tsx`／`app/api/admin/agenda/*` 的結構，刻意沒有抽共用元件——三個實體的欄位形狀不一樣（講者要處理已確認/照片兩個獨立狀態、夥伴要處理彈窗介紹文字、亮點只有標題內容兩欄），硬要抽一個共用的「內容區塊」抽象只會把欄位驗證邏輯從 schema 挪到應用層，換不到什麼好處，design.md 的 Non-Goals 也明確記下這個決定。
+- **種子資料**：`prisma/seed-speakers.ts`（8 筆）／`seed-partners.ts`（8 筆）／`seed-highlights.ts`（4 筆），逐字核對原始寫死內容（不是憑印象重打），沿用 `seed-agenda.ts` 的冪等寫法，各自對應 `npm run seed:speakers`／`seed:partners`／`seed:highlights`。
+
+**驗證方式（瀏覽器實際操作，不只是看程式碼或打 API）：**
+1. `npm run build` 通過。
+2. 種子跑完後，用瀏覽器 `read_page` 讀出落地頁「活動亮點」「講者陣容」「合作夥伴」三個區塊的完整內容，逐項核對跟原本寫死的版本文字一致——包含兩筆「待確認」講者的徽章樣式、陳伊誠「照片待提供」的樣式都正確重現，不是只驗證「有東西顯示」。
+3. 以 CTO 帳號登入，在講者管理頁實際新增一筆測試講者（真的點按鈕、真的填表單，不是打 API 模擬），確認出現在列表最後、預設為「已確認」狀態；再實際點刪除，確認列表精準回到原本的 8 筆。
+4. 確認 `/admin` 首頁的巡覽列正確顯示「管理講者」「管理夥伴」「管理亮點」三個連結，且跟「管理議程」一樣不受 CTO-only 判斷影響（PR 角色也看得到）。
+5. 直接用 `curl`（不帶 session cookie）打三組新 API 與其中一個新頁面，確認全部回 307 導去登入頁——確認新路由有被 `middleware.ts` 既有的 `/api/admin/:path*`／`/admin/:path*` matcher 涵蓋，不需要額外設定。
+6. PR 角色能否操作這三個功能沒有另外重新登入手動測，因為六支新 route handler 逐一檢查過原始碼，沒有任何一支呼叫 `getCurrentAccount()` 或檢查 `role`——跟 `agenda-management` 已經驗證過的「無角色限制」是同一套機制、同一份程式碼形狀，屬地驗證即可，記在 `tasks.md` 裡註明是用程式碼檢查而非重複手動測試。
+
+**同步更新：** `openspec/changes/add-content-cms/tasks.md` 全部項目勾選（除了空狀態的重複驗證明確標記為跳過並附理由）；歸檔為 `2026-08-05-add-content-cms`。README 更新：專案說明（新增四條 `/admin/*` 內容管理路由）、v3 更新對照表（講者/夥伴/亮點 CMS 改為「已實作並驗證」）、專案結構樹、測試步驟（補三個 seed 指令）、`/admin` 操作說明（新增「內容管理」小節，說明圖片只能貼網址的限制與原因）、專案進度追蹤表。同步更新 [DEPLOYMENT.md](DEPLOYMENT.md) 的部署步驟與上線前檢查清單，把新增的三個 seed 指令補進去，並把「這幾步最容易漏跑」的提醒寫得更明顯——呼應同一天稍早在 EC2 上真的漏跑過 `seed:admin`／`seed:agenda` 兩次的教訓，不能只加進文件就假設下次不會再漏。
