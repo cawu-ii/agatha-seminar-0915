@@ -4,7 +4,7 @@
 
 ---
 
-## Phase 1 — 需求理解與規劃
+## Phase 1 — 需求理解與規劃（2026/08/04）
 
 **做了什麼：**
 - 讀取兩份參考資料：
@@ -23,7 +23,7 @@
 
 ---
 
-## Phase 2 — OpenSpec 規格建立
+## Phase 2 — OpenSpec 規格建立（2026/08/04）
 
 **做了什麼：**
 - 執行 `npx @fission-ai/openspec@latest init --tools claude --no-animation .` 建立 `openspec/` 骨架與 Claude Code 的 skills/commands。
@@ -41,7 +41,7 @@
 
 ---
 
-## Phase 3 — 專案骨架建立
+## Phase 3 — 專案骨架建立（2026/08/04）
 
 **做了什麼：**
 - 手動寫 `package.json`、`tsconfig.json`、`next.config.mjs`、`.gitignore`（沒有用 `create-next-app` 互動式 CLI，因為它對非空資料夾會走互動提示，這個執行環境無法回應互動輸入）。
@@ -58,7 +58,7 @@
 
 ---
 
-## Phase 4 — 落地頁移植
+## Phase 4 — 落地頁移植（2026/08/04）
 
 **做了什麼：**
 - 原始 HTML 989KB 太大無法一次讀取，寫了一支暫存的 Node script（`extract-assets.mjs`，只存在 scratchpad，沒有留在專案內）：用正規表達式找出所有 `data:image/...;base64,...` 內嵌圖片，解碼後依內容雜湊命名，各自存成獨立檔案到 `public/images/`，原本的 base64 字串換成短路徑 `/images/asset-xxx.png`。這一步把檔案從 989KB 壓到 63KB，才有辦法逐段讀取轉譯，總共取出 14 張圖片。
@@ -72,7 +72,7 @@
 
 ---
 
-## Phase 5 — 報名 API
+## Phase 5 — 報名 API（2026/08/04）
 
 **做了什麼：**
 - `lib/integrations/email.ts`、`meta-capi.ts`、`ragic.ts`：三個整合點都做成「沒憑證就 no-op + log，不拋錯」。
@@ -83,7 +83,7 @@
 
 ---
 
-## Phase 6 — 感謝頁
+## Phase 6 — 感謝頁（2026/08/04）
 
 **做了什麼：**
 - `components/AddToCalendar.tsx`：提供 Google 日曆連結（純 URL，不需要任何第三方帳號）+ `.ics` 檔案下載（前端用 Blob 產生），兩種都涵蓋，解決交接文件 §8.1 裡「這邊來得及加按鈕嗎？」的懸問。
@@ -94,7 +94,7 @@
 
 ---
 
-## Phase 7 — 後台
+## Phase 7 — 後台（2026/08/04）
 
 **做了什麼：**
 - `lib/session.ts`：HMAC 簽章的 session token，做單密碼登入。
@@ -108,7 +108,7 @@
 
 ---
 
-## Phase 8 — 匯出
+## Phase 8 — 匯出（2026/08/04）
 
 **做了什麼：**
 - `scripts/export-registrations.ts`：CTO 本機執行 `npm run export:registrations`，輸出帶 BOM 的 UTF-8 CSV（確保 Excel 開繁體中文不亂碼）到 `exports/`（已加進 `.gitignore`，含個資不能進版控）。
@@ -119,7 +119,7 @@
 
 ---
 
-## Phase 9 — Build 驗證
+## Phase 9 — Build 驗證（2026/08/04）
 
 **做了什麼：**
 - `npx prisma generate && npm run build`。
@@ -129,7 +129,7 @@
 
 ---
 
-## Phase 10 — 瀏覽器端到端驗證
+## Phase 10 — 瀏覽器端到端驗證（2026/08/04）
 
 **做了什麼：**
 - 建立 `.claude/launch.json`（`seminar-dev` 設定，`npm run dev` on port 3000）。
@@ -155,7 +155,7 @@
 
 ---
 
-## Phase 11 — README 撰寫
+## Phase 11 — README 撰寫（2026/08/04）
 
 **做了什麼：**
 - 寫 `README.md`：專案是什麼、對應交接文件版本、部署狀態、怎麼跑起來、`.env` 逐項說明（誰提供/沒有時會怎樣）、`/admin` 使用說明、CTO-only 匯出說明、已知偏離計畫之處（SQLite）、§12 測試表對照（今天測過 vs 卡在憑證）、待確認事項、下一步時程（對照文件 §10）。
@@ -164,7 +164,7 @@
 
 ---
 
-## Phase 12 — OpenSpec tasks.md 同步
+## Phase 12 — OpenSpec tasks.md 同步（2026/08/04）
 
 **做了什麼：**
 - 把 `openspec/changes/add-seminar-registration-system/tasks.md` 所有項目改成 `[x]`，並在 1.3（Docker → Postgres）那項附註實際發生的偏離與原因，讓規格文件跟實際完成狀況保持一致，不是寫好就沒人管。
@@ -173,7 +173,7 @@
 
 ---
 
-## Phase 13 — Docker 二次確認
+## Phase 13 — Docker 二次確認（2026/08/04）
 
 **做了什麼：**
 - 先前那個逾時被丟到背景執行的 `docker info` 指令，事後回報「完成了（exit code 0）」，看起來像是 Docker 突然好了。
@@ -183,13 +183,13 @@
 
 ---
 
-## Phase 14 — 本開發 Log 建立
+## Phase 14 — 本開發 Log 建立（2026/08/04）
 
 - 把整個開發過程「by phase、step by step」完整記錄進一份開發 log。本檔案即為該紀錄，取代先前建立的簡版 `DEVLOG.md`（已刪除，內容整合進本檔並補齊 Phase 1 的規劃階段細節）。
 
 ---
 
-## Phase 15 — README 補圖表與檔名調整
+## Phase 15 — README 補圖表與檔名調整（2026/08/04）
 
 - 跑 `npx prisma migrate dev` 時要注意是 `npx` 不是 `npm`——`npm` 沒有 `prisma` 子指令；`package.json` 裡也提供 `npm run db:migrate` 這個別名可以用，避免打錯。
 - 盤點「現在的網頁和 demo 原型 HTML 差在哪裡」，整理成一份對照表（送出邏輯、UTM、感謝頁、追蹤、確認信、Meta CAPI、後台、匯出），核心結論：畫面是同一套皮，差別都在「送出之後」的資料流與後台，追蹤／寄信這些第三方整合管線已經接好但因無憑證而是安全的 no-op。
@@ -198,7 +198,7 @@
 
 ---
 
-## Phase 16 — README 視覺整理
+## Phase 16 — README 視覺整理（2026/08/04）
 
 - 目標：「README 整齊好看」、「資料流做成一張圖」。確認畫面的整齊感來自：頂部技術棧 badge、依負責人上色的 `mermaid flowchart`（用 `classDef` 上色而非預設灰底）、對齊整齊的 tree 區塊，而不是什麼特殊渲染器——都是標準 Markdown + Mermaid，換一個支援 Mermaid 的檢視器（GitHub／VS Code／Cursor 等）就能看到同樣效果。
 - 對應改造 `README.md`：
@@ -213,7 +213,7 @@
 
 ---
 
-## Phase 17 — README 用詞專業化
+## Phase 17 — README 用詞專業化（2026/08/04）
 
 - 整份 README 依同樣精神做用詞正式專業化。
 - 依此原則，將所有標題與跨節指稱同步改為正式書面語，並更新對應的「目錄」錨點連結（逐一手算 GitHub 風格 slug 規則核對過，未直接假設）：
@@ -231,7 +231,7 @@
 
 ---
 
-## Phase 18 — 建立 GitHub Repo 並首次 push
+## Phase 18 — 建立 GitHub Repo 並首次 push（2026/08/04）
 
 - 決定 repo 命名與描述：採用與 `package.json` 一致的 `agatha-seminar-0915`（理由：目前系統確實是為此單場活動打造，資料庫/後台皆非通用多活動架構），並考量到 `..._CTO交接文件_0729.docx` 這份內部規格文件會一起進版控，原則上以 Private 起手較安全。
 - repo 建於 `https://github.com/cawu-ii/agatha-seminar-0915.git`，開始 commit/push：
@@ -245,7 +245,7 @@
 
 ---
 
-## Phase 19 — 獨立 QA 測試、資料清理、README 同步更新
+## Phase 19 — 獨立 QA 測試、資料清理、README 同步更新（2026/08/04）
 
 **做了什麼：**
 - 開一輪獨立 QA 驗證，先讀完 7 份 capability spec、把 CTO 交接文件 §12 測試表 10 項逐一對應到 spec 需求，再實際跑起 app、逐項用瀏覽器與 API 執行測試（不是只看文件推論結果），並補測 spec 明文要求但未列在 §12 表格的項目（冪等性、匯出權限隔離、CTO 匯出腳本、Ragic no-op 等）。結果：**20 Pass、3 Blocked（#4 確認信／#7 GA4／#8 Meta 像素，皆待真實憑證，非缺陷）、0 Fail**。完整紀錄寫入 `qa/test-log-2026-08-04.md`。
@@ -258,7 +258,7 @@
 
 ---
 
-## Phase 20 — SQLite 定案、Turso 共用資料庫串接
+## Phase 20 — SQLite 定案、Turso 共用資料庫串接（2026/08/04）
 
 **背景：** 主管確認「用 SQLite 就可以」——SQLite 從此是正式採用的資料庫，不是等 Docker/Supabase 到位前的暫時方案。同時要求做一個後台登入查報名者資訊；`/admin` 其實已經做好（Phase 7），不用重做。真正的缺口是「共用」：SQLite 是單機檔案，之前只存在這台開發機上，CTO 跟公關要透過同一個 `/admin` 看到同一份即時資料，需要一個大家都連得到的共用資料庫，不是各自機器各存一份。
 
@@ -282,7 +282,7 @@
 
 ---
 
-## Phase 21 — Turso 降級為選用，改成純 SQLite 為預設
+## Phase 21 — Turso 降級為選用，改成純 SQLite 為預設（2026/08/04）
 
 **背景：** 主管明確表示希望純用 SQLite 就好，並且部署（含網域）由主管方負責。這代表 Turso 不是必要條件，程式碼原本的設計（`TURSO_DATABASE_URL` 留空即回退本機檔案，見 Phase 20）剛好已經支援「純 SQLite」這個模式，不需要改程式碼；需要調整的是**文件的敘事重心**——原本把 Turso 寫成「解決共用問題的主要方案」，現在要倒過來，把純 SQLite 寫成預設、Turso 降級成選用附註。
 
@@ -294,7 +294,7 @@
 
 ---
 
-## Phase 22 — 修正主管端 `/admin` 崩潰：資料庫未初始化未被攔截
+## Phase 22 — 修正主管端 `/admin` 崩潰：資料庫未初始化未被攔截（2026/08/04）
 
 **背景：** 密碼改成 `admin123` 之後，主管自己把 repo clone 到公司 AWS 工作機測試，`/admin` 畫面噴出一個 Next.js runtime 錯誤覆蓋層：`Failed to execute 'json' on 'Response': Unexpected end of JSON input`，出在 `components/AdminTable.tsx` 的 `res.json()`。
 
@@ -314,7 +314,7 @@
 
 ---
 
-## Phase 23 — 交接文件 v3（0804）比對、議程管理 OpenSpec 規格
+## Phase 23 — 交接文件 v3（0804）比對、議程管理 OpenSpec 規格（2026/08/05）
 
 **背景：** 行銷／公關組提出新需求，交接文件更新到 v3（0804 版），比 0729 版多了 22 行內容。收到的指示是「詳細比對並且將比較結果新增至 openspec」，並點出主要新增功能：公關可從後台新增會議議程、更新到前端。
 
@@ -347,7 +347,7 @@
 
 ---
 
-## Phase 24 — 議程管理實作（`add-agenda-management` 落地）
+## Phase 24 — 議程管理實作（`add-agenda-management` 落地）（2026/08/05）
 
 **做了什麼：** 依 Phase 23 寫好的 OpenSpec 規格（`tasks.md` 5 組任務）逐項實作。
 
@@ -373,7 +373,7 @@
 
 **同步更新：** `openspec/changes/add-agenda-management/tasks.md` 全部項目勾選並補上實作中發現的 4.3；執行 `openspec archive add-agenda-management -y` 歸檔，`agenda-management` capability 正式進入 `openspec/specs/`。README 新增「議程管理（`/admin/agenda`）」操作說明、「交接文件 v3 更新對照」表格狀態改成「已實作並驗證」、「測試步驟」補上 `npm run seed:agenda` 這一步（否則全新環境的議程區塊會是空的，同一類「文件沒寫清楚全新環境要做什麼」的坑，這次主動補上不等下次真的有人踩到）、專案結構樹更新（agenda 相關檔案、`openspec/specs`／`archive`、`qa/` 資料夾）、頂部規格文件連結指向正確的歸檔路徑。
 
-## Phase 25 — 個別帳號＋角色權限、Excel 匯出實作（`add-admin-accounts` 落地）
+## Phase 25 — 個別帳號＋角色權限、Excel 匯出實作（`add-admin-accounts` 落地）（2026/08/05）
 
 **做了什麼：** 依 v3 比對表列出「要做」的兩項——公關個別帳號（v3 §6.9）、名單匯出改 Excel（v3 §6.3）——寫 OpenSpec 規格並實作，兩項合併成一個 change（帳號與匯出的權限判斷互相依賴，拆開會讓中間狀態無法自洽驗證）。
 
