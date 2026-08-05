@@ -32,5 +32,6 @@ next-env.d.ts
 # exports (contain PII, never commit)
 /exports/
 
-# internal-only source doc, marked confidential — repo is public, do not publish
-Agatha_Seminar_Landing_Page報名系統與追蹤_CTO交接文件_0729.docx
+# internal-only source docs, marked confidential — repo is public, do not publish
+# (wildcard so every dated CTO handoff revision is caught automatically)
+Agatha_Seminar*CTO交接文件*.docx

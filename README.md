@@ -8,7 +8,7 @@
 
 > 對應交接文件《Agatha_Seminar_Landing_Page報名系統與追蹤_CTO交接文件_0729》，實作文件 §0 指派予 CTO／工程之範圍：**報名頁與自建後台、GTM 埋設、GA4／Meta 像素整合、交易信 API 串接與網域驗證、感謝頁、UTM 落庫、後台權限開放予公關**。
 
-規格文件位於 [`openspec/changes/add-seminar-registration-system/`](openspec/changes/add-seminar-registration-system/)（proposal / design / specs / tasks）；本 README 為系統操作手冊，完整 phase-by-phase 開發歷程與遭遇問題記錄於 [`devlog.md`](devlog.md)；獨立 QA 測試紀錄於 [`qa/test-log-2026-08-04.md`](qa/test-log-2026-08-04.md)。
+規格文件採 OpenSpec 管理：已完成並歸檔於 [`openspec/changes/archive/2026-08-05-add-seminar-registration-system/`](openspec/changes/archive/2026-08-05-add-seminar-registration-system/)，現行 capability spec 之單一真相在 [`openspec/specs/`](openspec/specs/)；規劃中、尚未實作的變更在 [`openspec/changes/add-agenda-management/`](openspec/changes/add-agenda-management/)（議程後台管理，對照交接文件 v3／0804 新需求，詳見下方）。本 README 為系統操作手冊，完整 phase-by-phase 開發歷程與遭遇問題記錄於 [`devlog.md`](devlog.md)；獨立 QA 測試紀錄於 [`qa/test-log-2026-08-04.md`](qa/test-log-2026-08-04.md)。
 
 **目前狀態：本機／staging 已通過獨立 QA 驗證（20 Pass、3 Blocked、0 Fail，詳見下方「已完成測項與待驗證測項」），尚未部署至 production 或 agatha-ai.com。**
 
@@ -18,6 +18,7 @@
 
 - [專案說明](#專案說明)
 - [與原型 HTML 差異](#與原型-html-差異)
+- [交接文件 v3（0804）更新對照](#交接文件-v30804更新對照)
 - [角色與分工](#角色與分工)
 - [系統資料流](#系統資料流)
 - [專案結構](#專案結構)
@@ -62,6 +63,22 @@ Next.js（App Router + TypeScript）全端專案：
 摘要：**畫面沿用原型，資料庫與後台為全新建置；追蹤／寄信等第三方整合管線已完成串接，僅因憑證尚未到位而處於安全的 no-op 狀態，不會因缺少憑證而導致錯誤或流程中斷**。待 GA4／Meta／交易信帳號取得後，僅需將對應數值填入 `.env` 即可啟用，無需修改程式碼。
 
 ---
+
+## 交接文件 v3（0804）更新對照
+
+行銷／公關組提出新需求，交接文件更新至 v3（0804）。完整逐項比對見 [`openspec/changes/add-agenda-management/proposal.md`](openspec/changes/add-agenda-management/proposal.md)，重點摘要：
+
+| 項目 | 摘要 | 狀態 |
+|---|---|---|
+| **議程可由後台管理** | 公關可從 `/admin` 新增／編輯／刪除／排序議程，即時反映到落地頁（取代目前寫死的 JSX） | 📝 已完成 OpenSpec 規格（`openspec/changes/add-agenda-management/`），**尚未實作**，待你確認後排入開發 |
+| 新子網域 `2026-forum.agatha-ai.com` | 純部署/DNS 層級，路由本身相對路徑，程式碼不受影響 | 不需工程動作 |
+| GA4 已開通（`G-L8NZJXKM3J`） | 仍缺 GTM 容器 ID（`NEXT_PUBLIC_GTM_ID`），此項本身不影響程式碼 | 僅供知悉 |
+| UTM 新增「合作夥伴」來源、不分波段 | `utm_source`/`utm_content` 本為自由字串，非固定選項 | ✅ 已相容，無需改動 |
+| 名單匯出改 Excel（.xlsx） | 目前為 CSV | 未處理，建議另開 change |
+| CMS 範圍擴及 Banner／講者／夥伴／表單欄 | 議程僅為第一階段 | 未處理，待議程完成後視需要另開 change |
+| 公關改為個別帳號（非共用密碼） | 與現行 `admin-console` V1 設計（單一共用密碼）衝突 | 未處理，既有 tasks.md 已列 Phase B |
+
+**這次只針對「議程後台管理」寫規格，其餘項目記錄在比對表中，尚未動工**——避免一次把不相關的能力全部混進同一個 change。你要先看規格、還是我可以直接開始實作？
 
 ## 角色與分工
 
@@ -304,5 +321,8 @@ SQLite 是單一檔案（`prisma/dev.db`），寫入的資料就存在「跑這�
 | `agatha-ai.com` 部署與 DNS | `open` | 須由你方親自操作或授權，本次交付範圍未涵蓋 |
 | `/admin` 共用密碼交接予公關 | `open` | 目前僅你方持有密碼，交付方式待你方決定 |
 | 感謝頁／確認信文案「7 個工作天」版本 | `open` | 待你方或 Lindy 確認採用版本 |
-| Phase B：`/admin` 個別帳號＋角色權限 | `open` | 不阻塞 8/10，V1 先採單一密碼 |
+| Phase B：`/admin` 個別帳號＋角色權限 | `open` | 不阻塞 8/10，V1 先採單一密碼；v3 文件已明確要求，優先度提高 |
 | Phase B：Ragic 即時串接 | `open` | 目前為 no-op stub，待 Ragic API token |
+| 議程後台管理 OpenSpec 規格（`add-agenda-management`） | `done` | 對照交接文件 v3 新需求；proposal／design／specs／tasks 皆完成、已通過驗證 |
+| 議程後台管理實作 | `open` | 規格已就緒，待確認後排入開發；範圍：`AgendaItem` model、後台 CRUD＋排序、落地頁改資料驅動渲染 |
+| v3 其餘新需求（Excel 匯出、CMS 其他區塊、公關個別帳號、新子網域） | `open` | 已記錄於「交接文件 v3 更新對照」，尚未排入開發，需個別確認優先順序 |

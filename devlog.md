@@ -311,3 +311,36 @@
 **同步修正的文件缺口：** README「測試步驟」原本寫「`.env` 已提供一份可直接執行之本機開發設定」——這句話只在這台開發機上成立，因為 `.env` 是我在本機手動建立的，從沒進過 git（`.gitignore` 排除，理所當然，機密不該進版控）。但這代表**任何一次全新 `git clone`（換機器、換人）都不會有 `.env`**，照原本步驟直接跑會在更早的地方就失敗（`SESSION_SECRET is not configured` 或密碼永遠對不起來）。改寫成明確的兩步驟：`cp .env.example .env` 並列出至少要填的三個變數（`ADMIN_PASSWORD`／`SESSION_SECRET`／`EXPORT_TOKEN`），以及為什麼漏掉任一步會出現什麼現象，讓下一台新機器（或下一個人）照著做就不會重踩同一個坑。
 
 **根本原因總結**：這不是主管操作錯誤，是文件沒把「換一台全新機器」這個場景交代清楚（`.env` 建立步驟完全沒寫），疊加上 API 對這類環境問題完全沒有防護（例外直接讓回應變成空白）。兩個問題都已修正：文件補齊步驟，程式碼補上防護，兩者疊加確保下次同樣情境不會再變成一個看不懂的空白錯誤。
+
+---
+
+## Phase 23 — 交接文件 v3（0804）比對、議程管理 OpenSpec 規格
+
+**背景：** 行銷／公關組提出新需求，交接文件更新到 v3（0804 版），比 0729 版多了 22 行內容。收到的指示是「詳細比對並且將比較結果新增至 openspec」，並點出主要新增功能：公關可從後台新增會議議程、更新到前端。
+
+**做了什麼：**
+- 用跟 Phase 1 同一套方法（PowerShell 把 docx 當 zip 解壓、解析 `word/document.xml`）把 0804 版完整抽成純文字（202 行 vs 舊版 180 行），逐段跟 0729 版對照，列出全部差異，不只挑使用者點名的那一項：
+  1. 議程可由後台管理（點名的主要新功能）
+  2. 報名頁換新子網域 `2026-forum.agatha-ai.com`
+  3. GA4 已開通（`G-L8NZJXKM3J`）
+  4. UTM 來源從 4 個增為 6 個（新增「合作夥伴」`utm_medium=referral`），且**不再分波次**（舊版的 wave1/2/3、edm1/2 這套 `utm_content` 區分方式在 v3 消失了）
+  5. 名單匯出要求改成 Excel（.xlsx），且要「走權限控管並記錄 log」
+  6. 後台 CMS 範圍其實遠大於議程——連 Banner、講者、合作夥伴、活動亮點、活動資訊、**報名表單欄**都要求可後台編輯
+  7. 公關帳號要求改成「個別帳號，不可共用一組」，且「權限只綁這場活動，結束即回收」——這點跟現有 admin-console 的 V1 單一共用密碼設計直接衝突
+  8. 後台要能「發送行前／會後通知」，不只是現有的單筆重寄確認信
+  9. Meta Pixel 追蹤細節（§6.7）展開成 4 項重點，但核對後發現既有實作（event_id 去重、非個資參數、CAPI 雜湊）本來就已經涵蓋，不需要改動
+  10. 投廣週報從每週一改每週三、8/19 起，欄位大幅擴充——純內部報表流程，不涉及本系統程式碼
+  11. §12 測試計畫新增「CMS 編輯」「名單匯出」兩項測試，拿掉了波次區分測試
+- 逐項核對「新來源 UTM／新增合作夥伴」對程式碼的實際影響：查 `lib/registration-schema.ts` 確認 `utm_source`／`utm_content` 從一開始就是自由字串（`z.string().optional()`），不是寫死的 enum，**新的 UTM 值完全不需要改程式碼**，這點直接記錄下來、不用另開工。
+- 決定範圍：使用者明確點名「主要新增功能」是議程管理，其餘 10 項雖然都比對出來了，但沒有得到要動工的指示，所以**只針對議程管理寫 OpenSpec 規格**，其餘 10 項整理成一張表格記錄在 proposal.md 跟 README 裡，不擅自擴大範圍去猜測其他項目要不要做。
+- 執行 `openspec archive add-seminar-registration-system -y`：這是本次第一次真的把已完成的 change 歸檔——先前只有一個 change 且從未跑過 archive，`openspec/specs/` 資料夾原本是空的。歸檔後 7 個 capability spec（landing-page、registration-api 等）正式落在 `openspec/specs/`，變成後續 change 可以參照／修改的「主真相」。這一步是必要的：如果不歸檔，新 change 想用 OpenSpec 慣例的「MODIFIED Requirements」引用既有 capability 時，會找不到 `openspec/specs/<capability>/spec.md` 這個檔案。
+- 建立新 change `add-agenda-management`：
+  - `proposal.md`：Why、完整 11 項比對表（含「本次是否處理」欄位）、Capabilities（新增 `agenda-management`，不修改任何既有 capability——查證後發現議程項目是跟報名資料完全不同的實體，admin-console 現有「不能刪除／不能整批匯出」的限制文字明確只針對報名資料，不影響議程 CRUD，所以不需要 MODIFIED delta）。
+  - `design.md`：`AgendaItem` model 設計（`timeLabel` 用自由文字而非結構化時間，因為現有設計本來就是純顯示字串、不需要程式運算時長；`sortOrder` 用上下移動而非拖拉排序，因為議程項目數量小、拖拉排序的前端工程量不成比例）；落地頁直接在 server component 查 Prisma，不另開公開 API；沿用既有單一共用密碼保護議程管理，不因為這次新功能就提前做個別帳號（那是 v3 比對表第 7 項，明確列為未處理）；種子資料只跑一次，避免每次部署重複塞資料。
+  - `specs/agenda-management/spec.md`：7 條 requirement（渲染、新增、編輯、刪除、排序、需要 admin 驗證），皆為 ADDED（新 capability，不影響既有 spec）。
+  - `tasks.md`：5 組任務（資料模型、後台 API、後台 UI、落地頁改造、驗證），全部未勾選——這次只寫規格，沒有動一行 app 程式碼。
+  - `openspec validate add-agenda-management --strict` 通過。
+- 複製 0804 版 docx 進專案（比照 0729 版做法），把 `.gitignore` 裡原本寫死單一檔名的規則改成萬用字元 `Agatha_Seminar*CTO交接文件*.docx`，一次涵蓋所有版本，不用每次交接文件更新都手動加一行；用 `git check-ignore -v` 對兩個檔名都測過確認規則生效。
+- README 新增「交接文件 v3（0804）更新對照」一節（摘要版比對表 + 連結到完整版），頂部規格文件連結改成指向歸檔路徑＋`openspec/specs/`＋新 change 路徑；「專案進度追蹤」新增 3 列：議程規格（`done`）、議程實作（`open`，待確認後排入開發）、v3 其餘新需求（`open`，記錄但未排程）。
+
+**遇到的問題：** 無執行面問題。這次純粹是研究比對＋規格撰寫，沒有跑 build、沒有動 app 程式碼，故未執行驗證步驟。
