@@ -8,7 +8,7 @@
 
 > 對應交接文件《Agatha_Seminar_Landing_Page報名系統與追蹤_CTO交接文件_0729》，實作文件 §0 指派予 CTO／工程之範圍：**報名頁與自建後台、GTM 埋設、GA4／Meta 像素整合、交易信 API 串接與網域驗證、感謝頁、UTM 落庫、後台權限開放予公關**。
 
-規格文件採 OpenSpec 管理，現行 capability spec 之單一真相在 [`openspec/specs/`](openspec/specs/)；已完成之 change 歸檔於 [`openspec/changes/archive/`](openspec/changes/archive/)（含完整 proposal／design／specs／tasks 紀錄，含議程後台管理、個別帳號＋角色權限、Excel 匯出、講者／夥伴／亮點 CMS、表單選項清單 CMS 等對照交接文件 v3／0804 新需求之規格，詳見下方）。本 README 為系統操作手冊，完整 phase-by-phase 開發歷程與遭遇問題記錄於 [`devlog.md`](devlog.md)；獨立 QA 測試紀錄於 [`qa/test-log-2026-08-04.md`](qa/test-log-2026-08-04.md)。
+規格文件採 OpenSpec 管理，現行 capability spec 之單一真相在 [`openspec/specs/`](openspec/specs/)；已完成之 change 歸檔於 [`openspec/changes/archive/`](openspec/changes/archive/)（含完整 proposal／design／specs／tasks 紀錄，含議程後台管理、個別帳號＋角色權限、Excel 匯出、講者／夥伴／亮點 CMS、表單選項清單 CMS 等對照交接文件 v3／0804 新需求之規格，詳見下方）。另有一份**只寫規格、尚未實作**的提案未歸檔於 [`openspec/changes/add-banner-event-info-cms/`](openspec/changes/add-banner-event-info-cms/)（Banner 上傳＋活動資訊 CMS，待檔案上傳基礎建設就緒後再排入實作）。本 README 為系統操作手冊，完整 phase-by-phase 開發歷程與遭遇問題記錄於 [`devlog.md`](devlog.md)；獨立 QA 測試紀錄於 [`qa/test-log-2026-08-04.md`](qa/test-log-2026-08-04.md)。
 
 **目前狀態：本機／staging 已通過獨立 QA 驗證（20 Pass、3 Blocked、0 Fail，詳見下方「已完成測項與待驗證測項」），尚未部署至 production 或 agatha-ai.com。**
 
@@ -80,9 +80,9 @@ Next.js（App Router + TypeScript）全端專案：
 | 新子網域 `2026-forum.agatha-ai.com` | 純部署/DNS 層級，路由本身相對路徑，程式碼不受影響 | 不需工程動作 |
 | GA4 已開通（`G-L8NZJXKM3J`） | 仍缺 GTM 容器 ID（`NEXT_PUBLIC_GTM_ID`），此項本身不影響程式碼 | 僅供知悉 |
 | UTM 新增「合作夥伴」來源、不分波段 | `utm_source`/`utm_content` 本為自由字串，非固定選項 | ✅ 已相容，無需改動 |
-| CMS 範圍擴及 Banner 上傳、活動資訊 | 需要檔案上傳基礎設施，尚未建置 | 未處理，另開 change（先寫規格） |
+| CMS 範圍擴及 Banner 上傳、活動資訊 | 需要檔案上傳基礎設施，尚未建置 | 🔵 **規格已完成**（[`add-banner-event-info-cms`](openspec/changes/add-banner-event-info-cms/)），**尚未實作** |
 
-**目前狀態：議程管理、個別帳號、Excel 匯出、講者／夥伴／亮點 CMS、表單選項清單 CMS 六項已完成並歸檔；CMS 剩餘的 Banner 上傳／活動資訊與新子網域部署尚未動工**，避免一次把不相關的能力全部混進同一個 change。
+**目前狀態：議程管理、個別帳號、Excel 匯出、講者／夥伴／亮點 CMS、表單選項清單 CMS 六項已完成並歸檔；Banner 上傳／活動資訊 CMS 規格已完成但尚未實作（需要先建置檔案上傳基礎建設）；新子網域部署尚未動工**，避免一次把不相關的能力全部混進同一個 change。
 
 ## 角色與分工
 
@@ -260,7 +260,7 @@ npm run dev              # http://localhost:3000
 - **合作夥伴管理**：名稱、Logo 網址、點擊 Logo 後彈出的介紹文字。
 - **活動亮點管理**：標題與內容，落地頁會自動依序標上「亮點一」「亮點二」……不需要自己輸入編號。
 - 三者皆支援上下箭頭排序，儲存後落地頁下次載入即反映（與議程同一套機制）。
-- **圖片／Logo 目前只能貼網址，還沒有檔案上傳功能**：這個專案還沒有檔案上傳的基礎建設，需要工程協助把圖片放到 `/public/images/` 後提供路徑，或使用外部圖床連結。之後如果要做真正的上傳功能，會跟 Banner 上傳一起處理（見下方「後續規劃」）。
+- **圖片／Logo 目前只能貼網址，還沒有檔案上傳功能**：這個專案還沒有檔案上傳的基礎建設，需要工程協助把圖片放到 `/public/images/` 後提供路徑，或使用外部圖床連結。之後如果要做真正的上傳功能，會跟 Banner 上傳一起處理——後者的規格已經寫好（[`openspec/changes/add-banner-event-info-cms/`](openspec/changes/add-banner-event-info-cms/)），但尚未實作，見下方「後續規劃」。
 
 ### 內容管理：報名表單選項清單（`/admin/form-options`）
 
@@ -362,7 +362,7 @@ SQLite 是單一檔案（`prisma/dev.db`），寫入的資料就存在「跑這�
 - **8/11**：開放報名並投放廣告，此時 GTM／GA4／Meta 像素／交易信憑證須全數補齊至 `.env`。
 - **9/7**：官網首頁上線（同網域並存，不在本次交付範圍）。
 - **9/12 前**：公關以 Excel 報名名單寄送行前通知——使用 `npm run export:registrations` 或 `/admin` 內建按鈕產出之 `.xlsx`。
-- **Phase B**（不阻塞 8/10）：Ragic 即時串接（目前為 no-op stub）；CMS 範圍擴及 Banner／講者／夥伴／表單欄選項清單。
+- **Phase B**（不阻塞 8/10）：Ragic 即時串接（目前為 no-op stub）；Banner 上傳／活動資訊 CMS——**規格已完成**（[`openspec/changes/add-banner-event-info-cms/`](openspec/changes/add-banner-event-info-cms/)），尚待實作，需要先建置這個專案目前還沒有的檔案上傳基礎建設。
 
 ---
 
@@ -400,4 +400,5 @@ SQLite 是單一檔案（`prisma/dev.db`），寫入的資料就存在「跑這�
 | Excel 匯出（`.xlsx`，角色限定＋稽核紀錄）（`data-export` 更新） | `done` | 對照交接文件 v3；CSV 改為 `.xlsx`，PR 角色不可達，動作記錄稽核紀錄 |
 | 講者／夥伴／亮點 CMS（`/admin/speakers`、`/admin/partners`、`/admin/highlights`） | `done` | 對照交接文件 v3 §6.2；OpenSpec 規格＋實作皆完成，CTO／PR 皆可操作，已於瀏覽器驗證 CRUD／排序，`npm run build` 通過；圖片僅支援貼網址，尚無上傳功能（見下方） |
 | 表單選項清單 CMS（`/admin/form-options`） | `done` | 對照交接文件 v3 §6.2；範圍限定選項清單（非完整表單建構器，已與你確認）；報名驗證 schema 改為依當下選項動態建立並已驗證與落地頁同步、拒絕已刪除的舊選項值、最後一個選項不可刪除 |
-| v3 其餘新需求（Banner 上傳、活動資訊 CMS、新子網域） | `open` | 已記錄於「交接文件 v3 更新對照」，尚未排入開發，需個別確認優先順序 |
+| Banner 上傳／活動資訊 CMS 規格（[`openspec/changes/add-banner-event-info-cms/`](openspec/changes/add-banner-event-info-cms/)） | `open`（規格已完成） | 對照交接文件 v3 §6.2 逐字引用（含 Banner 桌機 2560×1440／手機 1080×1350 精確尺寸）；proposal／design／specs 皆已寫完並通過 `openspec validate --strict`，**刻意尚未實作**——這是本專案第一個真的需要檔案上傳的功能，design.md 留了 4 個待決定的開放問題（尺寸不符要拒絕還是警告、要不要伺服器端壓縮、舊檔案怎麼清、要不要預覽），等你或工程排入下一輪再決定 |
+| 新子網域部署 | `open` | 已記錄於「交接文件 v3 更新對照」，純部署/DNS 層級，非工程範圍 |
