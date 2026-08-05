@@ -141,10 +141,11 @@ export function AccountsTable() {
                       <>
                         <input
                           type="password"
+                          className="finput"
                           placeholder="新密碼"
                           value={newPassword}
                           onChange={(e) => setNewPassword(e.target.value)}
-                          style={{ width: 120 }}
+                          style={{ width: 140 }}
                         />
                         <button type="button" className="small" disabled={busyId === a.id} onClick={() => submitResetPassword(a.id)}>
                           確認
@@ -170,20 +171,31 @@ export function AccountsTable() {
       <div className="glass" style={{ padding: 20, marginTop: 24, maxWidth: 560 }}>
         <h3 style={{ color: "#14231b", fontSize: 16, marginBottom: 12 }}>新增帳號</h3>
         <form onSubmit={createAccount} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <input value={newForm.name} onChange={(e) => setNewForm({ ...newForm, name: e.target.value })} placeholder="姓名" />
+          <input
+            className="finput"
+            value={newForm.name}
+            onChange={(e) => setNewForm({ ...newForm, name: e.target.value })}
+            placeholder="姓名"
+          />
           <input
             type="email"
+            className="finput"
             value={newForm.email}
             onChange={(e) => setNewForm({ ...newForm, email: e.target.value })}
             placeholder="Email"
           />
           <input
             type="password"
+            className="finput"
             value={newForm.password}
             onChange={(e) => setNewForm({ ...newForm, password: e.target.value })}
             placeholder="初始密碼（至少 8 碼）"
           />
-          <select value={newForm.role} onChange={(e) => setNewForm({ ...newForm, role: e.target.value as "CTO" | "PR" })}>
+          <select
+            className="finput fselect"
+            value={newForm.role}
+            onChange={(e) => setNewForm({ ...newForm, role: e.target.value as "CTO" | "PR" })}
+          >
             <option value="PR">公關（PR）</option>
             <option value="CTO">CTO</option>
           </select>

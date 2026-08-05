@@ -147,18 +147,21 @@ export function SpeakerTable() {
                     <td colSpan={6}>
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", padding: "8px 0" }}>
                         <input
+                          className="finput"
                           value={editForm.name}
                           onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
                           placeholder="姓名"
                           style={{ width: 160 }}
                         />
                         <input
+                          className="finput"
                           value={editForm.title}
                           onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
                           placeholder="職稱"
                           style={{ width: 220 }}
                         />
                         <input
+                          className="finput"
                           value={editForm.photoUrl}
                           onChange={(e) => setEditForm({ ...editForm, photoUrl: e.target.value })}
                           placeholder="照片網址（留空顯示待提供）"
@@ -173,6 +176,7 @@ export function SpeakerTable() {
                           已確認
                         </label>
                         <textarea
+                          className="finput"
                           value={editForm.bio}
                           onChange={(e) => setEditForm({ ...editForm, bio: e.target.value })}
                           placeholder="簡介"
@@ -236,20 +240,24 @@ export function SpeakerTable() {
         <form onSubmit={createItem} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <input
             value={newForm.name}
+            className="finput"
             onChange={(e) => setNewForm({ ...newForm, name: e.target.value })}
             placeholder="姓名"
           />
           <input
+            className="finput"
             value={newForm.title}
             onChange={(e) => setNewForm({ ...newForm, title: e.target.value })}
             placeholder="職稱"
           />
           <input
+            className="finput"
             value={newForm.photoUrl}
             onChange={(e) => setNewForm({ ...newForm, photoUrl: e.target.value })}
             placeholder="照片網址（留空顯示待提供）"
           />
           <textarea
+            className="finput"
             value={newForm.bio}
             onChange={(e) => setNewForm({ ...newForm, bio: e.target.value })}
             placeholder="簡介"

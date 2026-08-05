@@ -151,6 +151,7 @@ export function FormOptionsTable() {
                         <td colSpan={3}>
                           <div style={{ display: "flex", gap: 8, alignItems: "center", padding: "6px 0" }}>
                             <input
+                              className="finput"
                               value={editValue}
                               onChange={(e) => setEditValue(e.target.value)}
                               style={{ flex: 1, minWidth: 200 }}
@@ -213,6 +214,7 @@ export function FormOptionsTable() {
               style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}
             >
               <input
+                className="finput"
                 value={newValueByField[key] ?? ""}
                 onChange={(e) => setNewValueByField((prev) => ({ ...prev, [key]: e.target.value }))}
                 placeholder="新增選項內容"

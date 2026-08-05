@@ -137,18 +137,21 @@ export function PartnerTable() {
                     <td colSpan={4}>
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", padding: "8px 0" }}>
                         <input
+                          className="finput"
                           value={editForm.name}
                           onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
                           placeholder="名稱"
                           style={{ width: 200 }}
                         />
                         <input
+                          className="finput"
                           value={editForm.logoUrl}
                           onChange={(e) => setEditForm({ ...editForm, logoUrl: e.target.value })}
                           placeholder="Logo 網址"
                           style={{ flex: 1, minWidth: 220 }}
                         />
                         <textarea
+                          className="finput"
                           value={editForm.description}
                           onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
                           placeholder="介紹文字（點擊 Logo 後彈出的內容）"
@@ -211,16 +214,19 @@ export function PartnerTable() {
         <h3 style={{ color: "#14231b", fontSize: 16, marginBottom: 12 }}>新增合作夥伴</h3>
         <form onSubmit={createItem} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <input
+            className="finput"
             value={newForm.name}
             onChange={(e) => setNewForm({ ...newForm, name: e.target.value })}
             placeholder="名稱"
           />
           <input
+            className="finput"
             value={newForm.logoUrl}
             onChange={(e) => setNewForm({ ...newForm, logoUrl: e.target.value })}
             placeholder="Logo 網址"
           />
           <textarea
+            className="finput"
             value={newForm.description}
             onChange={(e) => setNewForm({ ...newForm, description: e.target.value })}
             placeholder="介紹文字（點擊 Logo 後彈出的內容）"

@@ -136,12 +136,14 @@ export function HighlightTable() {
                     <td colSpan={4}>
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", padding: "8px 0" }}>
                         <input
+                          className="finput"
                           value={editForm.title}
                           onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
                           placeholder="標題"
                           style={{ flex: 1, minWidth: 220 }}
                         />
                         <textarea
+                          className="finput"
                           value={editForm.body}
                           onChange={(e) => setEditForm({ ...editForm, body: e.target.value })}
                           placeholder="內容"
@@ -204,11 +206,13 @@ export function HighlightTable() {
         <h3 style={{ color: "#14231b", fontSize: 16, marginBottom: 12 }}>新增活動亮點</h3>
         <form onSubmit={createItem} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <input
+            className="finput"
             value={newForm.title}
             onChange={(e) => setNewForm({ ...newForm, title: e.target.value })}
             placeholder="標題"
           />
           <textarea
+            className="finput"
             value={newForm.body}
             onChange={(e) => setNewForm({ ...newForm, body: e.target.value })}
             placeholder="內容"

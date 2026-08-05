@@ -140,18 +140,21 @@ export function AgendaTable() {
                     <td colSpan={6}>
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", padding: "8px 0" }}>
                         <input
+                          className="finput"
                           value={editForm.timeLabel}
                           onChange={(e) => setEditForm({ ...editForm, timeLabel: e.target.value })}
                           placeholder="時間，例：13:30–13:35"
                           style={{ width: 140 }}
                         />
                         <input
+                          className="finput"
                           value={editForm.title}
                           onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
                           placeholder="標題"
                           style={{ flex: 1, minWidth: 200 }}
                         />
                         <input
+                          className="finput"
                           value={editForm.speaker}
                           onChange={(e) => setEditForm({ ...editForm, speaker: e.target.value })}
                           placeholder="講者（休息時段可留空）"
@@ -222,16 +225,19 @@ export function AgendaTable() {
         <h3 style={{ color: "#14231b", fontSize: 16, marginBottom: 12 }}>新增議程項目</h3>
         <form onSubmit={createItem} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <input
+            className="finput"
             value={newForm.timeLabel}
             onChange={(e) => setNewForm({ ...newForm, timeLabel: e.target.value })}
             placeholder="時間，例：13:30–13:35"
           />
           <input
+            className="finput"
             value={newForm.title}
             onChange={(e) => setNewForm({ ...newForm, title: e.target.value })}
             placeholder="標題"
           />
           <input
+            className="finput"
             value={newForm.speaker}
             onChange={(e) => setNewForm({ ...newForm, speaker: e.target.value })}
             placeholder="講者（休息時段可留空）"
