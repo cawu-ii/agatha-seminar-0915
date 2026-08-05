@@ -4,8 +4,21 @@ import { LpViewTracker } from "@/components/LpViewTracker";
 import { PageEffects } from "@/components/PageEffects";
 import { PartnerWall } from "@/components/PartnerWall";
 import { RegistrationForm } from "@/components/RegistrationForm";
+import { prisma } from "@/lib/prisma";
 
-export default function SeminarLandingPage() {
+// Agenda is DB-backed and PR-editable (openspec: add-agenda-management) - the
+// page must be rendered per-request, not statically at build time, or admin
+// edits would never show up without a full rebuild+redeploy.
+export const dynamic = "force-dynamic";
+
+export default async function SeminarLandingPage() {
+  // Agenda is PR-editable via /admin/agenda (openspec: add-agenda-management).
+  // Query fails safe to an empty list rather than crashing the whole landing
+  // page if the DB has a hiccup - the rest of the page still renders.
+  const agendaItems = await prisma.agendaItem
+    .findMany({ orderBy: { sortOrder: "asc" } })
+    .catch(() => []);
+
   return (
     <>
       <PageEffects />
@@ -258,46 +271,13 @@ export default function SeminarLandingPage() {
             <h2>活動議程</h2>
           </div>
           <div className="glass ag">
-            <div className="ag__row">
-              <div className="ag__time">13:30–13:35</div>
-              <div className="ag__t">開場：從製造 40 年到 AI 元年——傳統製造企業的 AI 戰略佈局</div>
-              <div className="ag__spk">今晧實業暨湧現智庫董事長｜石浩吉</div>
-            </div>
-            <div className="ag__row">
-              <div className="ag__time">13:35–14:00</div>
-              <div className="ag__t">Agatha 企業級 Agentic AI 平台：雲地整合、串接 ERP、驅動五大流程</div>
-              <div className="ag__spk">湧現智庫商務開發副總｜林書琦</div>
-            </div>
-            <div className="ag__row">
-              <div className="ag__time">14:00–14:20</div>
-              <div className="ag__t">製造業 AI 轉型的政府資源與補助解析</div>
-              <div className="ag__spk">金屬工業研究發展中心 產業創新服務組組長｜陳伊誠</div>
-            </div>
-            <div className="ag__row">
-              <div className="ag__time">14:20–14:40</div>
-              <div className="ag__t">AI 駕馭工程的時代：管理 AI Agent 的資安關鍵</div>
-              <div className="ag__spk">AIFT 商務合作總監 廖志偉 博士（Dr. Frank Liao）</div>
-            </div>
-            <div className="ag__row ag__row--break">
-              <div className="ag__time">14:40–14:55</div>
-              <div className="ag__t">中場休息・攤位交流</div>
-              <div className="ag__spk">—</div>
-            </div>
-            <div className="ag__row">
-              <div className="ag__time">14:55–15:20</div>
-              <div className="ag__t">企業 Agent 落地實戰：如何設計可被交付、可衡量、可管理的工作流</div>
-              <div className="ag__spk">湧現智庫技術長｜傅子維</div>
-            </div>
-            <div className="ag__row">
-              <div className="ag__time">15:20–15:45</div>
-              <div className="ag__t">【Panel】從單點試用到全員上手：製造業 Agentic AI 落地的真實代價與回報</div>
-              <div className="ag__spk">石浩吉 × 林書琦 × 優達科技〔待確認〕｜主持人 劉涵竹</div>
-            </div>
-            <div className="ag__row ag__row--break">
-              <div className="ag__time">15:45–16:30</div>
-              <div className="ag__t">交流時間・填問卷兌換好禮</div>
-              <div className="ag__spk">—</div>
-            </div>
+            {agendaItems.map((item) => (
+              <div className={`ag__row${item.isBreak ? " ag__row--break" : ""}`} key={item.id}>
+                <div className="ag__time">{item.timeLabel}</div>
+                <div className="ag__t">{item.title}</div>
+                <div className="ag__spk">{item.speaker || "—"}</div>
+              </div>
+            ))}
           </div>
           <p className="ag__note">＊講題與講者以最終確認為準。</p>
         </div>

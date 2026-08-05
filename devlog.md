@@ -344,3 +344,31 @@
 - README 新增「交接文件 v3（0804）更新對照」一節（摘要版比對表 + 連結到完整版），頂部規格文件連結改成指向歸檔路徑＋`openspec/specs/`＋新 change 路徑；「專案進度追蹤」新增 3 列：議程規格（`done`）、議程實作（`open`，待確認後排入開發）、v3 其餘新需求（`open`，記錄但未排程）。
 
 **遇到的問題：** 無執行面問題。這次純粹是研究比對＋規格撰寫，沒有跑 build、沒有動 app 程式碼，故未執行驗證步驟。
+
+---
+
+## Phase 24 — 議程管理實作（`add-agenda-management` 落地）
+
+**做了什麼：** 依 Phase 23 寫好的 OpenSpec 規格（`tasks.md` 5 組任務）逐項實作。
+
+- **資料模型**：`prisma/schema.prisma` 新增 `AgendaItem`（`timeLabel`／`title`／`speaker?`／`isBreak`／`sortOrder`／`createdAt`／`updatedAt`），跑 `npx prisma migrate dev --name add_agenda_item`。migrate 前先照 Phase 20 學到的教訓，用 `Get-CimInstance` 找出殘留的 `node.exe` 行程（背景一直開著的 `npm run dev`）先關掉，避免 query engine dll 檔案被鎖住導致 `EPERM`。
+- **種子腳本**：`prisma/seed-agenda.ts`，把原本寫死在 `page.tsx` 裡的 8 筆議程原封不動搬過去（時間、標題、講者、休息時段旗標皆逐字核對，不是憑印象重打），`sortOrder` 用 10 的倍數（10/20/30...）留間隔，方便之後在中間插入新項目不用整批重排；已有資料時自動跳過、不會重複塞。`package.json` 加 `npm run seed:agenda`。跑完直接查 DB 核對 8 筆內容與順序完全正確。
+- **後台 API**：`app/api/admin/agenda/route.ts`（GET 列表／POST 新增）、`app/api/admin/agenda/[id]/route.ts`（PATCH／DELETE）、`app/api/admin/agenda/[id]/move/route.ts`（用 `$transaction` 交換相鄰兩筆的 `sortOrder` 做上下移動）。三支都比照 Phase 22 學到的教訓包了 try/catch，資料庫有問題時回結構化錯誤訊息，不會是空白 500。確認 `middleware.ts` 既有的 `/api/admin/:path*` matcher 本來就涵蓋這些新路徑，不用改 middleware。
+- **後台 UI**：新增 `components/AgendaTable.tsx`（列表＋行內編輯表單＋新增表單，上下箭頭排序按鈕）與 `app/admin/agenda/page.tsx`，並在 `app/admin/page.tsx` 加一個「管理議程」連結。
+- **落地頁**：把 `app/seminar/0915/page.tsx` 裡 8 段寫死的 `.ag__row` JSX 換成 `agendaItems.map(...)`，資料來源改成 `prisma.agendaItem.findMany({ orderBy: { sortOrder: "asc" } })`，查詢包 `.catch(() => [])`——資料庫有狀況時議程區塊安全地顯示空清單，不會拖垮整頁。HTML/CSS class（`.ag__row`／`.ag__row--break`／`.ag__time`／`.ag__t`／`.ag__spk`）完全沿用，只換資料來源。
+
+**實作中發現、原計畫沒寫到的問題：**
+- 把 `page.tsx` 改成 `async function` 查資料庫之後，`npm run build` 的輸出顯示 `/seminar/0915` 還是標成 `○`（Static）。查了一下 Next.js 的行為：沒有用到 `cookies()`／`headers()`／動態 searchParams 之類的動態 API 時，App Router 預設會在**build 當下**執行這個 async server component 一次、把結果烤進靜態 HTML，之後 `next start` 在 production 會一直吐同一份快取內容，**不會每次請求重新查資料庫**。這代表公關在後台改議程，正式環境上完全不會反映，除非重新 build＋部署——直接違反規格寫的「WHEN an admin updates ... THEN the landing page reflects the new speaker name on next load」。這個問題在 `next dev` 底下完全測不出來（dev 模式不管動態靜態分類、永遠重新 render），只有跑 `next build` 仔細看輸出的 route 分類符號才會發現，是那種「看起來能動、實際上悄悄壞掉」的 bug。加一行 `export const dynamic = "force-dynamic"` 解決，重新 build 後確認 route 符號從 `○` 變成 `ƒ`（Dynamic）。這件事也補寫回 `tasks.md` 的 4.3，跟 openspec 的紀錄保持誠實（不是原計畫就想到的，是實作中才發現）。
+
+**驗證方式（都是瀏覽器/API 實際打過，不是只看程式碼）：**
+1. `rm -rf .next && npm run build`，確認 `/seminar/0915` 是 `ƒ` 不是 `○`。
+2. 開瀏覽器讀 `#agenda` 底下的 DOM，確認 8 筆、2 筆休息時段樣式正確、第一筆文字內容跟原本寫死的版本逐字相同（視覺 parity）。
+3. 用 `fetch` 登入後新增一筆測試議程，**重新整理落地頁**（不是打 API 而已）確認新項目立刻出現在頁面上——這一步同時驗證了「後台改資料」跟「force-dynamic 修好了」兩件事，不能只驗其中一個就假設沒事。
+4. 測 move up：確認該筆從第 9 筆移到第 8 筆，跟原本第 8 筆對調位置正確。
+5. 測 PATCH：只改 `speaker` 欄位，確認 `title` 完全沒被動到（避免部分更新誤觸其他欄位）。
+6. 測 DELETE：刪除測試項目後，`GET` 回傳筆數確認精準少 1 筆、回到原本 8 筆。
+7. 用 `curl`（不帶 session cookie）直接打 GET／POST，確認回傳 307 導去 `/admin/login`，跟既有 `/admin` 路由的保護行為一致。
+8. 用 `computer` 工具在瀏覽器裡對「編輯」按鈕做**真的滑鼠點擊**（不是只用 fetch 模擬），確認行內編輯表單真的會開啟/關閉——前面幾項都是打 API，這步才是真正驗證 React 元件本身接線正確。
+- 全部測完，查資料庫確認議程表精準回到 8 筆（等於乾淨狀態），才把 dev server 關掉。
+
+**同步更新：** `openspec/changes/add-agenda-management/tasks.md` 全部項目勾選並補上實作中發現的 4.3；執行 `openspec archive add-agenda-management -y` 歸檔，`agenda-management` capability 正式進入 `openspec/specs/`。README 新增「議程管理（`/admin/agenda`）」操作說明、「交接文件 v3 更新對照」表格狀態改成「已實作並驗證」、「測試步驟」補上 `npm run seed:agenda` 這一步（否則全新環境的議程區塊會是空的，同一類「文件沒寫清楚全新環境要做什麼」的坑，這次主動補上不等下次真的有人踩到）、專案結構樹更新（agenda 相關檔案、`openspec/specs`／`archive`、`qa/` 資料夾）、頂部規格文件連結指向正確的歸檔路徑。

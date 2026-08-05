@@ -8,7 +8,7 @@
 
 > 對應交接文件《Agatha_Seminar_Landing_Page報名系統與追蹤_CTO交接文件_0729》，實作文件 §0 指派予 CTO／工程之範圍：**報名頁與自建後台、GTM 埋設、GA4／Meta 像素整合、交易信 API 串接與網域驗證、感謝頁、UTM 落庫、後台權限開放予公關**。
 
-規格文件採 OpenSpec 管理：已完成並歸檔於 [`openspec/changes/archive/2026-08-05-add-seminar-registration-system/`](openspec/changes/archive/2026-08-05-add-seminar-registration-system/)，現行 capability spec 之單一真相在 [`openspec/specs/`](openspec/specs/)；規劃中、尚未實作的變更在 [`openspec/changes/add-agenda-management/`](openspec/changes/add-agenda-management/)（議程後台管理，對照交接文件 v3／0804 新需求，詳見下方）。本 README 為系統操作手冊，完整 phase-by-phase 開發歷程與遭遇問題記錄於 [`devlog.md`](devlog.md)；獨立 QA 測試紀錄於 [`qa/test-log-2026-08-04.md`](qa/test-log-2026-08-04.md)。
+規格文件採 OpenSpec 管理，現行 capability spec 之單一真相在 [`openspec/specs/`](openspec/specs/)；已完成之 change 歸檔於 [`openspec/changes/archive/`](openspec/changes/archive/)（含完整 proposal／design／specs／tasks 紀錄，含議程後台管理對照交接文件 v3／0804 新需求之規格，詳見下方）。本 README 為系統操作手冊，完整 phase-by-phase 開發歷程與遭遇問題記錄於 [`devlog.md`](devlog.md)；獨立 QA 測試紀錄於 [`qa/test-log-2026-08-04.md`](qa/test-log-2026-08-04.md)。
 
 **目前狀態：本機／staging 已通過獨立 QA 驗證（20 Pass、3 Blocked、0 Fail，詳見下方「已完成測項與待驗證測項」），尚未部署至 production 或 agatha-ai.com。**
 
@@ -66,19 +66,19 @@ Next.js（App Router + TypeScript）全端專案：
 
 ## 交接文件 v3（0804）更新對照
 
-行銷／公關組提出新需求，交接文件更新至 v3（0804）。完整逐項比對見 [`openspec/changes/add-agenda-management/proposal.md`](openspec/changes/add-agenda-management/proposal.md)，重點摘要：
+行銷／公關組提出新需求，交接文件更新至 v3（0804）。完整逐項比對見 [`openspec/changes/archive/2026-08-05-add-agenda-management/proposal.md`](openspec/changes/archive/2026-08-05-add-agenda-management/proposal.md)，重點摘要：
 
 | 項目 | 摘要 | 狀態 |
 |---|---|---|
-| **議程可由後台管理** | 公關可從 `/admin` 新增／編輯／刪除／排序議程，即時反映到落地頁（取代目前寫死的 JSX） | 📝 已完成 OpenSpec 規格（`openspec/changes/add-agenda-management/`），**尚未實作**，待你確認後排入開發 |
+| **議程可由後台管理** | 公關可從 `/admin/agenda` 新增／編輯／刪除／排序議程，即時反映到落地頁（取代原本寫死的 JSX） | ✅ **已實作並驗證**（見下方「議程管理」） |
 | 新子網域 `2026-forum.agatha-ai.com` | 純部署/DNS 層級，路由本身相對路徑，程式碼不受影響 | 不需工程動作 |
 | GA4 已開通（`G-L8NZJXKM3J`） | 仍缺 GTM 容器 ID（`NEXT_PUBLIC_GTM_ID`），此項本身不影響程式碼 | 僅供知悉 |
 | UTM 新增「合作夥伴」來源、不分波段 | `utm_source`/`utm_content` 本為自由字串，非固定選項 | ✅ 已相容，無需改動 |
 | 名單匯出改 Excel（.xlsx） | 目前為 CSV | 未處理，建議另開 change |
-| CMS 範圍擴及 Banner／講者／夥伴／表單欄 | 議程僅為第一階段 | 未處理，待議程完成後視需要另開 change |
+| CMS 範圍擴及 Banner／講者／夥伴／表單欄 | 議程僅為第一階段 | 未處理，待需要時另開 change |
 | 公關改為個別帳號（非共用密碼） | 與現行 `admin-console` V1 設計（單一共用密碼）衝突 | 未處理，既有 tasks.md 已列 Phase B |
 
-**這次只針對「議程後台管理」寫規格，其餘項目記錄在比對表中，尚未動工**——避免一次把不相關的能力全部混進同一個 change。你要先看規格、還是我可以直接開始實作？
+**這次只針對「議程後台管理」寫規格並實作，其餘項目記錄在比對表中，尚未動工**——避免一次把不相關的能力全部混進同一個 change。
 
 ## 角色與分工
 
@@ -131,31 +131,38 @@ seminar_apply/
 │  ├─ layout.tsx                              # 全站 layout，掛載 GtmLoader
 │  ├─ globals.css                              # 原始設計稿 CSS 1:1 沿用 + 新元件樣式
 │  ├─ seminar/0915/
-│  │  ├─ page.tsx                              # 🔵 報名落地頁
+│  │  ├─ page.tsx                              # 🔵 報名落地頁（含議程區塊，動態渲染 force-dynamic）
 │  │  └─ thanks/page.tsx                       # 🔵 感謝頁
 │  ├─ admin/
 │  │  ├─ page.tsx                              # 🔵 後台列表頁
+│  │  ├─ agenda/page.tsx                       # 🔵 議程管理頁
 │  │  └─ login/page.tsx                        # 🔵 後台登入頁
 │  └─ api/
 │     ├─ register/route.ts                     # 🔵 報名寫入 API（核心流程）
 │     ├─ export/route.ts                       # 🔵 CTO 專用匯出（獨立 token）
 │     └─ admin/
 │        ├─ login/route.ts · logout/route.ts
-│        └─ registrations/route.ts · registrations/[id]/review/route.ts · registrations/[id]/resend/route.ts
-├─ components/                                 # RegistrationForm, ConsentBanner, GtmLoader, AdminTable, AddToCalendar...
+│        ├─ registrations/route.ts · registrations/[id]/review/route.ts · registrations/[id]/resend/route.ts
+│        └─ agenda/route.ts · agenda/[id]/route.ts · agenda/[id]/move/route.ts
+├─ components/                                 # RegistrationForm, ConsentBanner, GtmLoader, AdminTable, AgendaTable, AddToCalendar...
 ├─ lib/
 │  ├─ prisma.ts · session.ts · gtm.ts · utm.ts
 │  ├─ form-options.ts · registration-schema.ts  # 表單選項與驗證邏輯，前後端共用
 │  └─ integrations/                             # 🟠🩷🟣 email.ts · meta-capi.ts · ragic.ts（無憑證即 no-op + log）
-├─ prisma/schema.prisma                         # Registration model
+├─ prisma/
+│  ├─ schema.prisma                             # Registration、AgendaItem model
+│  └─ seed-agenda.ts                            # 議程種子資料（`npm run seed:agenda`，只需手動跑一次）
 ├─ scripts/export-registrations.ts              # 🔵 CTO 專用 CSV 匯出腳本
 ├─ middleware.ts                                # 保護 /admin、/api/admin
-├─ openspec/changes/add-seminar-registration-system/  # 規格文件（proposal/design/specs/tasks）
+├─ openspec/
+│  ├─ specs/                                    # 現行 capability spec 單一真相（含 agenda-management）
+│  └─ changes/archive/                          # 已完成並歸檔之 change（含完整 proposal/design/specs/tasks 紀錄）
+├─ qa/test-log-2026-08-04.md                    # 獨立 QA 測試紀錄
 ├─ .env / .env.example
 ├─ README.md                                    # 本檔
 ├─ devlog.md                                    # 逐 phase 開發紀錄
 ├─ agatha-seminar-landing-0803.html             # 原始已核准設計稿（保留作為內容來源，未刪除）
-└─ Agatha_..._CTO交接文件_0729.docx              # 原始交接文件（本機保留作為規格來源；標註 Confidential，已加入 .gitignore，不進版控）
+└─ Agatha_..._CTO交接文件_*.docx                # 交接文件各版本（本機保留作為規格來源；標註 Confidential，已加入 .gitignore，不進版控）
 ```
 
 ---
@@ -179,10 +186,13 @@ cp .env.example .env
 # 2) 建立資料庫結構（prisma/dev.db 也被 .gitignore 排除，clone 下來是空的）
 npx prisma migrate dev
 
+# 3) 灌入議程初始資料（AgendaItem 表建好後是空的；不跑這步落地頁議程區塊會是空白，不是壞掉）
+npm run seed:agenda
+
 npm run dev              # http://localhost:3000
 ```
 
-漏掉第 1 步：`/admin` 登入會直接報「密碼錯誤」或伺服器噴 `SESSION_SECRET is not configured`。漏掉第 2 步：畫面看起來正常，但 `/admin` 或報名送出會回傳資料庫錯誤（`no such table`），且**目前版本會在畫面上直接顯示這則錯誤訊息**，不會再是一片空白的當機畫面。
+漏掉第 1 步：`/admin` 登入會直接報「密碼錯誤」或伺服器噴 `SESSION_SECRET is not configured`。漏掉第 2 步：畫面看起來正常，但 `/admin` 或報名送出會回傳資料庫錯誤（`no such table`），且**目前版本會在畫面上直接顯示這則錯誤訊息**，不會再是一片空白的當機畫面。漏掉第 3 步：不會報錯，落地頁議程區塊單純沒有任何內容（空清單本就是合法狀態，見 `agenda-management` spec），從 `/admin/agenda` 手動新增即可補上，或事後再跑一次 `npm run seed:agenda`（已有資料時會自動跳過、不會重複塞資料）。
 
 ---
 
@@ -209,6 +219,16 @@ npm run dev              # http://localhost:3000
 2. 功能涵蓋：依姓名／公司／Email 搜尋、依 `utm_source`／`utm_content`／處理狀態篩選、標記已處理／未處理、對單筆資料重寄確認信。
 3. **不提供**刪除、整批匯出功能——此為刻意設計，並非尚未完成（詳見 openspec 之 `admin-console` spec）。
 4. V1 採單一共用密碼，尚未實作個別帳號機制；文件 §9 checklist 之「公關個別帳號＋權限層級設定完成」須待 Phase B 方能完整達成，詳見下方「後續規劃」。
+
+### 議程管理（`/admin/agenda`）
+
+對照交接文件 v3 新需求（詳見上方「交接文件 v3 更新對照」）：公關可從後台新增／編輯／刪除／排序落地頁議程，不需工程協助或改程式碼重新部署。
+
+- 從 `/admin` 點「管理議程」進入，或直接前往 `/admin/agenda`。
+- 每筆議程含時間（自由文字，如 `13:30–13:35`）、標題、講者（休息時段可留空）、是否為休息時段。
+- 排序用上下箭頭調整，不支援拖拉（議程項目數量少，上下移動已足夠）。
+- 儲存後，落地頁 `/seminar/0915` 下次載入即反映變更——該頁面已設定為動態渲染（`force-dynamic`），不會有舊版被靜態快取的問題。
+- 與報名資料共用同一組 `/admin` 登入密碼，無獨立權限層級（V1 範圍，同上第 4 點）。
 
 ### 名單匯出予 Lindy／Ragic（CTO 專用，`/admin` 不提供此功能）
 
@@ -323,6 +343,5 @@ SQLite 是單一檔案（`prisma/dev.db`），寫入的資料就存在「跑這�
 | 感謝頁／確認信文案「7 個工作天」版本 | `open` | 待你方或 Lindy 確認採用版本 |
 | Phase B：`/admin` 個別帳號＋角色權限 | `open` | 不阻塞 8/10，V1 先採單一密碼；v3 文件已明確要求，優先度提高 |
 | Phase B：Ragic 即時串接 | `open` | 目前為 no-op stub，待 Ragic API token |
-| 議程後台管理 OpenSpec 規格（`add-agenda-management`） | `done` | 對照交接文件 v3 新需求；proposal／design／specs／tasks 皆完成、已通過驗證 |
-| 議程後台管理實作 | `open` | 規格已就緒，待確認後排入開發；範圍：`AgendaItem` model、後台 CRUD＋排序、落地頁改資料驅動渲染 |
+| 議程後台管理（`/admin/agenda`） | `done` | 對照交接文件 v3 新需求；OpenSpec 規格＋實作皆完成，已於瀏覽器驗證 CRUD／排序／權限，`npm run build` 通過 |
 | v3 其餘新需求（Excel 匯出、CMS 其他區塊、公關個別帳號、新子網域） | `open` | 已記錄於「交接文件 v3 更新對照」，尚未排入開發，需個別確認優先順序 |

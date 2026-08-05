@@ -10,7 +10,8 @@
     "db:migrate": "prisma migrate dev",
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
-    "export:registrations": "tsx scripts/export-registrations.ts"
+    "export:registrations": "tsx scripts/export-registrations.ts",
+    "seed:agenda": "tsx prisma/seed-agenda.ts"
   },
   "dependencies": {
     "@libsql/client": "^0.17.4",

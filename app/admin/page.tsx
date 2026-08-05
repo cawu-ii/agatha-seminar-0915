@@ -11,7 +11,12 @@ export default function AdminPage() {
             可查看、搜尋、篩選、標記處理狀態、重寄確認信。無刪除、無整批匯出（名單匯出請洽 CTO）。
           </p>
         </div>
-        <LogoutButton />
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <a className="btn btn--ghost" href="/admin/agenda">
+            管理議程
+          </a>
+          <LogoutButton />
+        </div>
       </div>
       <AdminTable />
     </div>

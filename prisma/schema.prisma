@@ -72,3 +72,20 @@ model Registration {
   @@index([createdAt])
   @@index([reviewed])
 }
+
+// PR-editable agenda (CTO handoff doc v3 §6.2 "後台 CMS" - agenda slice only,
+// see openspec/changes/add-agenda-management). timeLabel is free text, not a
+// structured start/end time: the approved design already treats time as a
+// display string ("13:30–13:35") and sortOrder alone drives display order.
+model AgendaItem {
+  id        String   @id @default(uuid())
+  timeLabel String
+  title     String
+  speaker   String?
+  isBreak   Boolean  @default(false)
+  sortOrder Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sortOrder])
+}
