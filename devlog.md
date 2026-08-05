@@ -372,3 +372,32 @@
 - 全部測完，查資料庫確認議程表精準回到 8 筆（等於乾淨狀態），才把 dev server 關掉。
 
 **同步更新：** `openspec/changes/add-agenda-management/tasks.md` 全部項目勾選並補上實作中發現的 4.3；執行 `openspec archive add-agenda-management -y` 歸檔，`agenda-management` capability 正式進入 `openspec/specs/`。README 新增「議程管理（`/admin/agenda`）」操作說明、「交接文件 v3 更新對照」表格狀態改成「已實作並驗證」、「測試步驟」補上 `npm run seed:agenda` 這一步（否則全新環境的議程區塊會是空的，同一類「文件沒寫清楚全新環境要做什麼」的坑，這次主動補上不等下次真的有人踩到）、專案結構樹更新（agenda 相關檔案、`openspec/specs`／`archive`、`qa/` 資料夾）、頂部規格文件連結指向正確的歸檔路徑。
+
+## Phase 25 — 個別帳號＋角色權限、Excel 匯出實作（`add-admin-accounts` 落地）
+
+**做了什麼：** 依 v3 比對表列出「要做」的兩項——公關個別帳號（v3 §6.9）、名單匯出改 Excel（v3 §6.3）——寫 OpenSpec 規格並實作，兩項合併成一個 change（帳號與匯出的權限判斷互相依賴，拆開會讓中間狀態無法自洽驗證）。
+
+- **資料模型**：`prisma/schema.prisma` 新增 `AdminRole`（`CTO`／`PR`）enum、`AdminAccount`（email／passwordHash／name／role／active／lastLoginAt）、`AdminAuditLog`（accountId／action／detail／createdAt，僅記錄 login／export 兩類動作，不記錄每一次 CRUD——設計時就決定稽核紀錄要拿來回答「誰、何時、做了什麼敏感操作」，不是完整操作日誌）。跑 `npx prisma migrate dev --name add_admin_accounts`，一樣先用 `Get-CimInstance` 清殘留 node 行程避免 DLL 鎖住。
+- **密碼與 session**：改用 `bcryptjs`（純 JS，避開 `bcrypt` 原生綁定在 webpack 打包時的老問題，跟當初 `@libsql/client` 需要 `serverExternalPackages` 是同一類坑，這次直接選開發階段就沒有這個坑的套件）。`lib/session.ts` 的 token payload 從 `<expires>` 改成 `<accountId>.<role>.<expires>`，簽章機制不變。新增 `lib/auth.ts` 放 `getCurrentAccount()`——刻意跟 `session.ts` 分開兩個檔案，因為 `next/headers` 的 `cookies()` 只能在 route handler／server component 用，不能在 Edge middleware 用，混在同一個檔案會讓 middleware 那邊 import 直接炸掉。
+- **登入改造**：`app/api/admin/login/route.ts` 從比對單一 `ADMIN_PASSWORD` 改成查 `AdminAccount` by email、`bcrypt.compare`、檢查 `active`，並在同一個 `$transaction` 裡更新 `lastLoginAt` 與寫入 audit log，避免兩個寫入不同步。
+- **帳號管理**：`app/api/admin/accounts/route.ts`（GET 列表／POST 新增）、`.../[id]/route.ts`（PATCH 停用／啟用／重設密碼），全部在 route handler 內部自行檢查 `role === "CTO"`，回 403，**不是只靠隱藏 UI 連結**；`app/admin/accounts/page.tsx` 額外加了 server-side redirect，PR 帳號直接打網址也會被導回 `/admin`，兩層防護而非各自信任對方。
+- **Excel 匯出**：加 `exceljs`，把「建立 workbook」的邏輯抽成 `lib/export-workbook.ts`，讓 CLI 腳本（`scripts/export-registrations.ts`）、token 認證的 `/api/export`、session 認證的新端點 `/api/admin/export` 三處共用同一份欄位定義，避免將來欄位改一處漏另外兩處。`/api/admin/export` 額外在回傳前寫入 audit log。
+- **UI**：`app/admin/page.tsx` 從伺服器端算出 `isCto`，「帳號管理」「匯出 Excel」兩個入口只在 CTO 角色渲染；議程管理連結兩角色都看得到。
+- **Seed**：`prisma/seed-admin.ts`，仿照 `seed-agenda.ts` 的冪等寫法——資料庫已有任何帳號就跳過，否則從 `INITIAL_CTO_EMAIL`／`INITIAL_CTO_PASSWORD` 建立第一個 CTO 帳號；沒設這兩個環境變數就直接報錯中止，不會靜靜地不做事。
+
+**實作中發現、原計畫沒寫到的問題：**
+- ExcelJS 產生的 `Buffer`直接塞進 `new NextResponse(buffer, {...})` 在 `npm run build` 時報 TypeScript 錯誤（`Buffer` 不滿足 `BodyInit`），兩個匯出路由都要多包一層 `new Uint8Array(buffer)` 才過。
+- 測試建立公關帳號時用 `curl -d '{"name":"QA 公關測試",...}'`，在這台 Windows／git-bash 環境下中文字真的被寫壞進資料庫（不只是顯示亂碼，直接查 DB 也是壞的）——這是 Phase 20 就踩過的同一個坑，這次直接改用 Node `fetch()` 送測試請求，繞過 `curl` 在這個環境下的編碼問題。壞掉的測試帳號後來刪除時又踩到第二個問題：因為它已經登入產生過 audit log，外鍵擋下直接刪除——這正是「停用不刪除」設計要保護的情境，不是 bug，照設計先刪 audit log 再刪帳號完成清理。
+
+**驗證方式：**
+1. `npm run build` 通過（含上述 `Uint8Array` 修正）。
+2. Seed 一個 CTO 帳號，登入後確認既有報名／議程功能不受影響。
+3. 從 `/admin/accounts` 建一個 PR 帳號，登入後確認：報名／議程功能正常、看不到帳號管理連結、看不到匯出按鈕、直接打 `/admin/accounts` 網址被導回 `/admin`、直接呼叫匯出 API 收到 403（不是只有 UI 藏起來）。
+4. 停用該 PR 帳號，確認無法再登入（401）。
+5. CTO 角色匯出後，把下載回來的 `.xlsx` 用 `exceljs` 讀回來核對筆數與欄位值，不是只看 HTTP 狀態碼跟 content-type 就當作過關。
+6. 確認登入與匯出兩個動作都正確寫進 `AdminAuditLog` 並可對應到正確的帳號。
+7. 確認舊的 `ADMIN_PASSWORD` 登入方式（環境變數已移除）無法再使用。
+
+**OpenSpec archive 過程踩的坑：** `openspec archive add-admin-accounts -y` 連續失敗三次，都是同一類錯誤——MODIFIED requirement 的標題／scenario 名稱寫成新的措辭，但 OpenSpec 要求 MODIFIED 區塊的標題要跟現有 spec **逐字相同**（空白不敏感），且不能讓現有 scenario 名稱在新版本裡憑空消失（validator 會擋，因為這代表可能悄悄遺失了原本的驗證情境）。修法固定：改標題／scenario 名稱時，先用 `openspec validate --strict` 看錯誤訊息裡指名的「原文」，把它逐字放回去，新的差異用「新增一個 scenario」的方式表達，而不是「把舊的改名」。`admin-console`、`data-export` 兩份 delta spec 都是這樣修好的，修完 `validate --strict` 過、`archive` 成功，`admin-accounts` capability 正式進入 `openspec/specs/`，`admin-console`／`data-export` 也同步更新。
+
+**同步更新：** `openspec/changes/add-admin-accounts/tasks.md` 全部項目勾選並補上測試備註；歸檔為 `2026-08-05-add-admin-accounts`。README 多處更新：專案說明、與原型 HTML 差異表、v3 更新對照表（帳號＋匯出兩項改為「已實作並驗證」）、角色與分工、系統資料流圖、專案結構樹、測試步驟（補 `seed:admin`、拿掉 `ADMIN_PASSWORD`）、`.env` 變數說明表、`/admin` 操作說明（改寫為個別帳號，新增「帳號管理」小節）、名單匯出說明（CSV 改 `.xlsx`，補第二條 `/admin` 內建按鈕路徑）、§12 測試表（匯出權限隔離改成角色判斷、新增稽核紀錄測項）、待確認事項、後續規劃、專案進度追蹤表（新增帳號管理／Excel 匯出／稽核紀錄三個 `done` 項目，拿掉已完成的 Phase B 項目）。

@@ -89,3 +89,39 @@ model AgendaItem {
 
   @@index([sortOrder])
 }
+
+// Individual accounts (CTO handoff doc v3 §6.9: 給公關個別帳號，勿共用一組),
+// replacing the V1 single shared ADMIN_PASSWORD - see
+// openspec/changes/add-admin-accounts. Deactivate (not delete) on revoke, so
+// AdminAuditLog.accountId stays valid.
+enum AdminRole {
+  CTO
+  PR
+}
+
+model AdminAccount {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String
+  name         String
+  role         AdminRole
+  active       Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  lastLoginAt  DateTime?
+
+  auditLogs AdminAuditLog[]
+}
+
+// V1 scope: only login + bulk export are logged (the two actions v3 §6.9
+// actually cares about), not every CRUD click - see design.md Decisions.
+model AdminAuditLog {
+  id        String   @id @default(uuid())
+  accountId String
+  account   AdminAccount @relation(fields: [accountId], references: [id])
+  action    String
+  detail    String?
+  createdAt DateTime @default(now())
+
+  @@index([accountId])
+  @@index([createdAt])
+}

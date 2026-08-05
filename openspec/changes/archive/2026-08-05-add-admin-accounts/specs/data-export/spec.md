@@ -1,18 +1,10 @@
-# data-export Specification
+## REMOVED Requirements
 
-## Purpose
-Gets the full registration list out to Lindy/Ragic through a CTO-controlled path, kept deliberately separate from the PR-facing admin console so the "no bulk export for PR" constraint holds structurally, not just by omission.
-## Requirements
-### Requirement: Ragic sync is a configuration-gated no-op until credentials exist
-The system SHALL provide a Ragic sync integration point that does nothing (no-op, logged) when no Ragic API token is configured, and SHALL NOT be invoked from the registration or admin request paths in a way that could fail them.
+### Requirement: Full-list export is only reachable by the CTO, not via the admin console
+**Reason**: With individual accounts and roles now in place (`admin-accounts`), "not via the admin console" is no longer the right boundary - the console is shared by both roles. The real constraint (PR can never reach bulk export) still holds; it's now enforced by role instead of by keeping the whole console PR-only.
+**Migration**: See the replacement requirement below.
 
-#### Scenario: No Ragic token configured
-- **WHEN** a registration succeeds and no Ragic API token is configured
-- **THEN** no outbound request to Ragic is made, and neither the registration nor the admin console is affected
-
-#### Scenario: Ragic token configured (future)
-- **WHEN** a Ragic API token is configured
-- **THEN** the sync integration point sends the registration's fields to Ragic without requiring changes to the registration or admin code paths
+## ADDED Requirements
 
 ### Requirement: Full-list export is reachable by CTO-role sessions, including from within /admin
 The system SHALL provide a way to export the full registration list as `.xlsx` that is available to CTO-role sessions, either through an authenticated CLI/script path (token-based, unchanged mechanism) or through a control inside `/admin` visible only to CTO-role sessions. PR-role sessions SHALL NOT be able to reach either path.
@@ -28,4 +20,3 @@ The system SHALL provide a way to export the full registration list as `.xlsx` t
 #### Scenario: CTO runs the export via script
 - **WHEN** the export is invoked with the token-authenticated CLI path
 - **THEN** an `.xlsx` file containing all registration records and their fields is produced
-

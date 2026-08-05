@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { checkExportToken } from "@/lib/session";
+import { buildRegistrationsWorkbook, workbookToBuffer, exportFileName } from "@/lib/export-workbook";
 
-// CTO-only bulk export (data-export capability). Authenticated separately from
-// /admin's ADMIN_PASSWORD/session cookie on purpose - PR's shared password must
-// never reach this route, and it is not linked anywhere in the /admin UI.
+// CTO-only bulk export (data-export capability), token-authenticated for
+// CLI/script use - kept separate from the session-based /api/admin/export so
+// PR-role /admin sessions can never reach it (see admin-console spec).
 export async function GET(req: NextRequest) {
   const token = req.headers.get("x-export-token") ?? req.nextUrl.searchParams.get("token") ?? "";
   if (!(await checkExportToken(token))) {
@@ -13,7 +14,14 @@ export async function GET(req: NextRequest) {
 
   try {
     const registrations = await prisma.registration.findMany({ orderBy: { createdAt: "asc" } });
-    return NextResponse.json({ registrations });
+    const buffer = await workbookToBuffer(buildRegistrationsWorkbook(registrations));
+    return new NextResponse(new Uint8Array(buffer), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "Content-Disposition": `attachment; filename="${exportFileName()}"`,
+      },
+    });
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error("[api/export] query failed", err);

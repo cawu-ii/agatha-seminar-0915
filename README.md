@@ -8,7 +8,7 @@
 
 > 對應交接文件《Agatha_Seminar_Landing_Page報名系統與追蹤_CTO交接文件_0729》，實作文件 §0 指派予 CTO／工程之範圍：**報名頁與自建後台、GTM 埋設、GA4／Meta 像素整合、交易信 API 串接與網域驗證、感謝頁、UTM 落庫、後台權限開放予公關**。
 
-規格文件採 OpenSpec 管理，現行 capability spec 之單一真相在 [`openspec/specs/`](openspec/specs/)；已完成之 change 歸檔於 [`openspec/changes/archive/`](openspec/changes/archive/)（含完整 proposal／design／specs／tasks 紀錄，含議程後台管理對照交接文件 v3／0804 新需求之規格，詳見下方）。本 README 為系統操作手冊，完整 phase-by-phase 開發歷程與遭遇問題記錄於 [`devlog.md`](devlog.md)；獨立 QA 測試紀錄於 [`qa/test-log-2026-08-04.md`](qa/test-log-2026-08-04.md)。
+規格文件採 OpenSpec 管理，現行 capability spec 之單一真相在 [`openspec/specs/`](openspec/specs/)；已完成之 change 歸檔於 [`openspec/changes/archive/`](openspec/changes/archive/)（含完整 proposal／design／specs／tasks 紀錄，含議程後台管理、個別帳號＋角色權限、Excel 匯出等對照交接文件 v3／0804 新需求之規格，詳見下方）。本 README 為系統操作手冊，完整 phase-by-phase 開發歷程與遭遇問題記錄於 [`devlog.md`](devlog.md)；獨立 QA 測試紀錄於 [`qa/test-log-2026-08-04.md`](qa/test-log-2026-08-04.md)。
 
 **目前狀態：本機／staging 已通過獨立 QA 驗證（20 Pass、3 Blocked、0 Fail，詳見下方「已完成測項與待驗證測項」），尚未部署至 production 或 agatha-ai.com。**
 
@@ -39,9 +39,10 @@ Next.js（App Router + TypeScript）全端專案：
 
 - `/seminar/0915` — 報名落地頁（沿用已核准之靜態設計 `agatha-seminar-landing-0803.html` 的文案與樣式，改以 Next.js 頁面實作，並補上實際送出邏輯）
 - `/seminar/0915/thanks` — 感謝頁（文件 §8.2 官方文案，含加入行事曆、觸發 `registration_submit`）
-- `/admin` — 公關使用之報名後台（V1：單一共用密碼）
+- `/admin` — CTO／公關共用之報名後台，採個別帳號＋角色（`CTO`／`PR`）登入，非共用密碼
+- `/admin/accounts` — 帳號管理（CTO 專屬，新增／停用帳號、重設密碼）
 - `/api/register` — 報名寫入 API（驗證 → 寫庫 → 非同步寄信／推送 Meta CAPI）
-- `scripts/export-registrations.ts` + `/api/export` — CTO 專用名單匯出（`/admin` 介面不提供此功能，詳見下方說明）
+- `scripts/export-registrations.ts` + `/api/export`（CLI／權杖）與 `/api/admin/export`（`/admin` 內建按鈕，CTO 角色限定）— 名單匯出，`.xlsx` 格式，兩條路徑皆僅 CTO 可達，動作記錄於稽核紀錄
 
 ---
 
@@ -57,8 +58,8 @@ Next.js（App Router + TypeScript）全端專案：
 | 追蹤（GTM／GA4／Meta） | 完全未埋設，原始碼中無任何 GTM 相關程式碼 | 已完成 GTM 容器、同意橫幅、三項事件（`lp_view`／`cta_click`／`registration_submit`）之程式邏輯；**因尚未取得正式 GTM ID，目前不會載入任何追蹤腳本**——整合管線已就緒，僅待憑證啟用 |
 | 確認信 | 無此功能 | 已具備寄信邏輯，未設定交易信帳號時僅於伺服器 log 記錄應發送對象，不會實際寄出 |
 | Meta CAPI | 無 | 同上，邏輯已完成，未設定憑證時為 no-op |
-| 後台（`/admin`） | 不存在 | 新建功能，公關可登入查看名單、篩選、標記處理狀態、重寄確認信 |
-| 名單匯出 | 不存在 | CTO 專用匯出功能（`npm run export:registrations`） |
+| 後台（`/admin`） | 不存在 | 新建功能，CTO／公關以個別帳號登入查看名單、篩選、標記處理狀態、重寄確認信 |
+| 名單匯出 | 不存在 | CTO 角色專用匯出功能，`.xlsx` 格式（CLI 或 `/admin` 內建按鈕），並記錄稽核紀錄 |
 
 摘要：**畫面沿用原型，資料庫與後台為全新建置；追蹤／寄信等第三方整合管線已完成串接，僅因憑證尚未到位而處於安全的 no-op 狀態，不會因缺少憑證而導致錯誤或流程中斷**。待 GA4／Meta／交易信帳號取得後，僅需將對應數值填入 `.env` 即可啟用，無需修改程式碼。
 
@@ -71,14 +72,14 @@ Next.js（App Router + TypeScript）全端專案：
 | 項目 | 摘要 | 狀態 |
 |---|---|---|
 | **議程可由後台管理** | 公關可從 `/admin/agenda` 新增／編輯／刪除／排序議程，即時反映到落地頁（取代原本寫死的 JSX） | ✅ **已實作並驗證**（見下方「議程管理」） |
+| **公關改為個別帳號（非共用密碼）** | v3 §6.9 明文要求「給公關個別帳號（勿共用一組）」，與原 V1 單一共用密碼設計衝突 | ✅ **已實作並驗證**（見下方「帳號管理」；`ADMIN_PASSWORD` 已移除） |
+| **名單匯出改 Excel（.xlsx）** | 原為 CSV，且需權限控管並記錄 log | ✅ **已實作並驗證**（CTO 角色限定，動作寫入稽核紀錄，見下方「名單匯出」） |
 | 新子網域 `2026-forum.agatha-ai.com` | 純部署/DNS 層級，路由本身相對路徑，程式碼不受影響 | 不需工程動作 |
 | GA4 已開通（`G-L8NZJXKM3J`） | 仍缺 GTM 容器 ID（`NEXT_PUBLIC_GTM_ID`），此項本身不影響程式碼 | 僅供知悉 |
 | UTM 新增「合作夥伴」來源、不分波段 | `utm_source`/`utm_content` 本為自由字串，非固定選項 | ✅ 已相容，無需改動 |
-| 名單匯出改 Excel（.xlsx） | 目前為 CSV | 未處理，建議另開 change |
 | CMS 範圍擴及 Banner／講者／夥伴／表單欄 | 議程僅為第一階段 | 未處理，待需要時另開 change |
-| 公關改為個別帳號（非共用密碼） | 與現行 `admin-console` V1 設計（單一共用密碼）衝突 | 未處理，既有 tasks.md 已列 Phase B |
 
-**這次只針對「議程後台管理」寫規格並實作，其餘項目記錄在比對表中，尚未動工**——避免一次把不相關的能力全部混進同一個 change。
+**目前狀態：議程管理、個別帳號、Excel 匯出三項已完成並歸檔；CMS 其餘區塊（Banner／講者／夥伴／表單欄選項）與新子網域部署尚未動工**，避免一次把不相關的能力全部混進同一個 change。
 
 ## 角色與分工
 
@@ -88,7 +89,7 @@ Next.js（App Router + TypeScript）全端專案：
 |---|---|---|
 | 🔵 **CTO／工程**（本次交付範圍） | 報名頁與自建後台、GTM 埋設、交易信 API 串接、感謝頁、UTM 落庫、後台權限開放予公關 | 涵蓋幾乎所有程式碼：落地頁、`/api/register`、`/admin`、資料庫、CTO 專用匯出 |
 | 🟠 **Lindy（行銷）** | 申請 GA4 取得追蹤碼、分發 UTM 連結、對外文案 | 提供 `NEXT_PUBLIC_GTM_ID`／`NEXT_PUBLIC_GA4_ID`；透過 `/admin` 或 CTO 匯出名單彙整週報 |
-| 🩷 **公關（鼎東）** | Meta 廣告像素、透過共用後台執行報名者行前／會後通知 | 提供 `META_CAPI_TOKEN`／`META_PIXEL_ID`；日常操作 `/admin`（V1：單一共用密碼） |
+| 🩷 **公關（鼎東）** | Meta 廣告像素、透過後台執行報名者行前／會後通知 | 提供 `META_CAPI_TOKEN`／`META_PIXEL_ID`；日常操作 `/admin`（PR 角色個別帳號登入，由 CTO 建立） |
 | 🟣 **公司（BD／財務）** | 申辦交易信服務帳號（公司持有）、Ragic 串接 | 提供 `RESEND_API_KEY`／`RAGIC_API_TOKEN` |
 
 ---
@@ -107,8 +108,8 @@ flowchart TD
   API -->|"200 + event_id（不含 PII）"| THX["🔵 CTO · /thanks<br/>加入行事曆、觸發 registration_submit"]
   THX -->|"dataLayer.push"| GTM
   DB --> ADMIN["🔵 CTO · /admin<br/>查詢／篩選／標記／重寄信"]
-  ADMIN -.日常操作.-> PRUSER["🩷 公關（共用密碼登入）"]:::pr
-  DB --> EXPORT["🔵 CTO 專用匯出<br/>獨立 EXPORT_TOKEN，/admin 不提供"]
+  ADMIN -.日常操作（PR 角色帳號）.-> PRUSER["🩷 公關（個別帳號登入）"]:::pr
+  DB --> EXPORT["🔵 CTO 角色專用匯出（.xlsx）<br/>CLI／EXPORT_TOKEN 或 /admin 內建按鈕，皆記錄稽核紀錄"]
   EXPORT -.交付名單.-> RAGIC["🟣 公司 · Ragic<br/>Phase B，目前為 no-op"]:::company
 
   classDef ext fill:#F1EFE8,stroke:#B4B2A9,color:#2C2C2A;
@@ -134,25 +135,30 @@ seminar_apply/
 │  │  ├─ page.tsx                              # 🔵 報名落地頁（含議程區塊，動態渲染 force-dynamic）
 │  │  └─ thanks/page.tsx                       # 🔵 感謝頁
 │  ├─ admin/
-│  │  ├─ page.tsx                              # 🔵 後台列表頁
+│  │  ├─ page.tsx                              # 🔵 後台列表頁（依角色顯示帳號管理／匯出按鈕）
 │  │  ├─ agenda/page.tsx                       # 🔵 議程管理頁
-│  │  └─ login/page.tsx                        # 🔵 後台登入頁
+│  │  ├─ accounts/page.tsx                     # 🔵 帳號管理頁（CTO 專屬，頁面層 redirect 防 PR 直接進入）
+│  │  └─ login/page.tsx                        # 🔵 後台登入頁（email + 密碼）
 │  └─ api/
 │     ├─ register/route.ts                     # 🔵 報名寫入 API（核心流程）
-│     ├─ export/route.ts                       # 🔵 CTO 專用匯出（獨立 token）
+│     ├─ export/route.ts                       # 🔵 CTO 專用匯出（獨立 token，CLI 用，輸出 .xlsx）
 │     └─ admin/
 │        ├─ login/route.ts · logout/route.ts
 │        ├─ registrations/route.ts · registrations/[id]/review/route.ts · registrations/[id]/resend/route.ts
-│        └─ agenda/route.ts · agenda/[id]/route.ts · agenda/[id]/move/route.ts
-├─ components/                                 # RegistrationForm, ConsentBanner, GtmLoader, AdminTable, AgendaTable, AddToCalendar...
+│        ├─ agenda/route.ts · agenda/[id]/route.ts · agenda/[id]/move/route.ts
+│        ├─ accounts/route.ts · accounts/[id]/route.ts  # 🔵 CTO-only：帳號列表／新增／停用／重設密碼
+│        └─ export/route.ts                     # 🔵 CTO 角色限定，session 驗證，寫入稽核紀錄
+├─ components/                                 # RegistrationForm, ConsentBanner, GtmLoader, AdminTable, AgendaTable, AccountsTable, AddToCalendar...
 ├─ lib/
-│  ├─ prisma.ts · session.ts · gtm.ts · utm.ts
+│  ├─ prisma.ts · session.ts · auth.ts · gtm.ts · utm.ts
+│  ├─ export-workbook.ts                        # `.xlsx` 產生邏輯，CLI 腳本與兩支匯出 API 共用
 │  ├─ form-options.ts · registration-schema.ts  # 表單選項與驗證邏輯，前後端共用
 │  └─ integrations/                             # 🟠🩷🟣 email.ts · meta-capi.ts · ragic.ts（無憑證即 no-op + log）
 ├─ prisma/
-│  ├─ schema.prisma                             # Registration、AgendaItem model
-│  └─ seed-agenda.ts                            # 議程種子資料（`npm run seed:agenda`，只需手動跑一次）
-├─ scripts/export-registrations.ts              # 🔵 CTO 專用 CSV 匯出腳本
+│  ├─ schema.prisma                             # Registration、AgendaItem、AdminAccount、AdminAuditLog model
+│  ├─ seed-agenda.ts                            # 議程種子資料（`npm run seed:agenda`，只需手動跑一次）
+│  └─ seed-admin.ts                             # 建立第一個 CTO 帳號（`npm run seed:admin`，全新環境必跑）
+├─ scripts/export-registrations.ts              # 🔵 CTO 專用匯出腳本，輸出 .xlsx
 ├─ middleware.ts                                # 保護 /admin、/api/admin
 ├─ openspec/
 │  ├─ specs/                                    # 現行 capability spec 單一真相（含 agenda-management）
@@ -177,10 +183,11 @@ npm install
 # 1) 建立 .env（.gitignore 排除，clone 下來不會有這個檔案）
 cp .env.example .env
 # 打開 .env，至少要填：
-#   ADMIN_PASSWORD  隨意設一組密碼
-#   SESSION_SECRET  隨機字串，可用下面這行產生：
+#   SESSION_SECRET       隨機字串，可用下面這行產生：
 #     node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-#   EXPORT_TOKEN    隨意設一組（跟 ADMIN_PASSWORD 不同即可）
+#   EXPORT_TOKEN          隨意設一組，CTO 專用匯出（CLI）的權杖，刻意跟後台登入密碼分開
+#   INITIAL_CTO_EMAIL     第一個 CTO 帳號的 email，僅 seed 時使用一次
+#   INITIAL_CTO_PASSWORD  第一個 CTO 帳號的密碼，僅 seed 時使用一次
 # 其餘（GTM/GA4/Meta/Email/Ragic 相關）留空即可，程式會安全地不啟用該功能
 
 # 2) 建立資料庫結構（prisma/dev.db 也被 .gitignore 排除，clone 下來是空的）
@@ -189,10 +196,13 @@ npx prisma migrate dev
 # 3) 灌入議程初始資料（AgendaItem 表建好後是空的；不跑這步落地頁議程區塊會是空白，不是壞掉）
 npm run seed:agenda
 
+# 4) 建立第一個 CTO 帳號（AdminAccount 表建好後是空的；不跑這步無法登入 /admin，已有帳號時會自動跳過）
+npm run seed:admin
+
 npm run dev              # http://localhost:3000
 ```
 
-漏掉第 1 步：`/admin` 登入會直接報「密碼錯誤」或伺服器噴 `SESSION_SECRET is not configured`。漏掉第 2 步：畫面看起來正常，但 `/admin` 或報名送出會回傳資料庫錯誤（`no such table`），且**目前版本會在畫面上直接顯示這則錯誤訊息**，不會再是一片空白的當機畫面。漏掉第 3 步：不會報錯，落地頁議程區塊單純沒有任何內容（空清單本就是合法狀態，見 `agenda-management` spec），從 `/admin/agenda` 手動新增即可補上，或事後再跑一次 `npm run seed:agenda`（已有資料時會自動跳過、不會重複塞資料）。
+漏掉第 1 步：伺服器啟動或登入時會直接噴 `SESSION_SECRET is not configured`；漏掉 `INITIAL_CTO_EMAIL`／`INITIAL_CTO_PASSWORD` 則第 4 步會報錯要求先設定。漏掉第 2 步：畫面看起來正常，但 `/admin` 或報名送出會回傳資料庫錯誤（`no such table`），且**目前版本會在畫面上直接顯示這則錯誤訊息**，不會再是一片空白的當機畫面。漏掉第 3 步：不會報錯，落地頁議程區塊單純沒有任何內容（空清單本就是合法狀態，見 `agenda-management` spec），從 `/admin/agenda` 手動新增即可補上，或事後再跑一次 `npm run seed:agenda`（已有資料時會自動跳過、不會重複塞資料）。漏掉第 4 步：`/admin/login` 輸入任何帳密都會是「帳號或密碼錯誤」，因為資料庫裡還沒有任何帳號可以比對。
 
 ---
 
@@ -202,9 +212,9 @@ npm run dev              # http://localhost:3000
 |---|---|---|---|
 | `DATABASE_URL` | 本機 SQLite 檔案路徑，供 Prisma CLI（migrate/studio）使用 | 🔵 CTO | 詳見下方「資料庫架構」 |
 | `TURSO_DATABASE_URL` / `TURSO_AUTH_TOKEN` | **選用**。留空即為純 SQLite（部署主機硬碟上的檔案），CTO＋公關透過同一個部署網址即可讀寫同一份資料，不需要這兩個變數 | 🔵 CTO（僅在想改用 Turso 時才需要） | 未設定：應用程式使用部署主機上的 SQLite 檔案（預設模式） |
-| `ADMIN_PASSWORD` | `/admin` 共用密碼 | 🔵 CTO 設定後轉交 🩷 公關 | 未設定則無法登入後台 |
 | `SESSION_SECRET` | 後台登入 cookie 簽章密鑰 | 🔵 CTO（隨機字串即可） | 未設定將直接報錯，刻意避免以弱密鑰悄悄運作 |
-| `EXPORT_TOKEN` | CTO 專用匯出端點之權杖，**刻意與 `ADMIN_PASSWORD` 分開** | 🔵 CTO 自行保管，不轉交公關 | 未設定則無法使用 `/api/export` |
+| `EXPORT_TOKEN` | CTO 專用匯出端點（CLI／`/api/export`）之權杖，**刻意與後台登入分開**，PR 角色帳號即使登入 `/admin` 也拿不到這個權杖 | 🔵 CTO 自行保管，不轉交公關 | 未設定則無法使用 `/api/export` |
+| `INITIAL_CTO_EMAIL` / `INITIAL_CTO_PASSWORD` | 僅供 `npm run seed:admin` 使用一次，建立資料庫裡第一個 `CTO` 角色帳號 | 🔵 CTO | 未設定：`seed:admin` 直接報錯並中止，不會建立帳號 |
 | `NEXT_PUBLIC_GTM_ID` | GTM 容器 ID | 🟠 Lindy（文件 §3） | 未設定：網站將完全不注入 GTM 腳本，不影響運作 |
 | `NEXT_PUBLIC_GA4_ID` | 備忘用途（GA4 於 GTM 容器內設定，本站不直接讀取） | 🟠 Lindy | 不影響程式運作 |
 | `META_CAPI_TOKEN` / `META_PIXEL_ID` | Meta Conversions API 伺服器端事件 | 🩷 公關公司（文件 §5） | 未設定：`sendMetaCAPI` 為 no-op + log，不影響報名流程 |
@@ -215,10 +225,11 @@ npm run dev              # http://localhost:3000
 
 ## `/admin` 操作說明
 
-1. 前往 `/admin`，未登入將導向 `/admin/login`，輸入 `ADMIN_PASSWORD` 即可登入。
-2. 功能涵蓋：依姓名／公司／Email 搜尋、依 `utm_source`／`utm_content`／處理狀態篩選、標記已處理／未處理、對單筆資料重寄確認信。
-3. **不提供**刪除、整批匯出功能——此為刻意設計，並非尚未完成（詳見 openspec 之 `admin-console` spec）。
-4. V1 採單一共用密碼，尚未實作個別帳號機制；文件 §9 checklist 之「公關個別帳號＋權限層級設定完成」須待 Phase B 方能完整達成，詳見下方「後續規劃」。
+1. 前往 `/admin`，未登入將導向 `/admin/login`，輸入 email／密碼登入——**個別帳號，不再共用一組密碼**（對照文件 v3 §6.9）。
+2. 功能涵蓋：依姓名／公司／Email 搜尋、依 `utm_source`／`utm_content`／處理狀態篩選、標記已處理／未處理、對單筆資料重寄確認信；此部分 CTO／PR 兩角色皆可使用。
+3. **不提供**刪除功能；**整批匯出僅 CTO 角色可見可用**，PR 角色即使直接呼叫匯出 API 也會收到 403（詳見 openspec 之 `admin-console`／`data-export` spec）。
+4. 帳號管理（新增帳號、停用／啟用、重設密碼）僅 CTO 角色可進入，見下方「帳號管理」。
+5. 每次登入與每次匯出動作皆寫入稽核紀錄（`AdminAuditLog`），記錄操作帳號與時間。
 
 ### 議程管理（`/admin/agenda`）
 
@@ -228,15 +239,23 @@ npm run dev              # http://localhost:3000
 - 每筆議程含時間（自由文字，如 `13:30–13:35`）、標題、講者（休息時段可留空）、是否為休息時段。
 - 排序用上下箭頭調整，不支援拖拉（議程項目數量少，上下移動已足夠）。
 - 儲存後，落地頁 `/seminar/0915` 下次載入即反映變更——該頁面已設定為動態渲染（`force-dynamic`），不會有舊版被靜態快取的問題。
-- 與報名資料共用同一組 `/admin` 登入密碼，無獨立權限層級（V1 範圍，同上第 4 點）。
+- CTO／PR 兩角色皆可管理議程，與帳號管理（CTO 專屬）分開。
 
-### 名單匯出予 Lindy／Ragic（CTO 專用，`/admin` 不提供此功能）
+### 帳號管理（`/admin/accounts`，CTO 專屬）
+
+- 僅 CTO 角色看得到 `/admin` 上的「帳號管理」連結；PR 角色即使直接輸入網址，頁面層也會被導回 `/admin`（API 層同樣拒絕，非僅隱藏 UI）。
+- 可新增帳號（email／姓名／密碼／角色）、停用／啟用既有帳號、重設密碼。
+- **停用而非刪除**：帳號一旦有過登入或匯出紀錄，資料庫層會因稽核紀錄外鍵而拒絕真的刪除該帳號，這是刻意設計（保留稽核紀錄完整性），不是 bug。活動結束後比照文件 v3 §6.9「權限只綁這場活動，結束即回收」的作法是**停用**公關帳號，而非刪除。
+
+### 名單匯出予 Lindy／Ragic（CTO 角色專用，`.xlsx` 格式）
+
+兩種方式擇一，資料內容相同：
 
 ```bash
-npm run export:registrations   # 產出 exports/registrations-YYYY-MM-DD.csv（已列入 .gitignore，內含個資請勿外流）
+npm run export:registrations   # 產出 exports/registrations-YYYY-MM-DD.xlsx（已列入 .gitignore，內含個資請勿外流）
 ```
 
-或使用 `GET /api/export?token=<EXPORT_TOKEN>`（`ADMIN_PASSWORD` 對此端點無效，兩組密碼刻意分離）。
+或在 `/admin` 頁面上以 CTO 帳號登入後，直接點「匯出 Excel」按鈕（呼叫 `/api/admin/export`，session 驗證，PR 角色帳號看不到此按鈕、直接呼叫 API 也會收到 403）；也可用 `GET /api/export?token=<EXPORT_TOKEN>` 供 CLI／排程使用。兩條路徑皆會在 `AdminAuditLog` 留下一筆 `export` 紀錄。
 
 ---
 
@@ -283,7 +302,8 @@ SQLite 是單一檔案（`prisma/dev.db`），寫入的資料就存在「跑這�
 | 9 | 後台權限 | 公關帳號可查看／篩選／標記／寄信；確認無刪除鍵、無整批匯出鍵 ✅ |
 | 10 | 合規性 | 同意橫幅優先顯示，勾選同意後始注入 GTM；`dataLayer` 事件僅攜帶 `event_id`／UTM，不含 email／phone ✅ |
 | — | 冪等性 | 同一 `idempotencyKey` 送出兩次，僅產生一筆紀錄並回傳相同 `event_id` ✅ |
-| — | 匯出權限隔離 | `ADMIN_PASSWORD` 存取 `/api/export` 回傳 401；`EXPORT_TOKEN` 方能回傳 200 ✅ |
+| — | 匯出權限隔離 | PR 角色 session 呼叫 `/api/admin/export` 回傳 403；無 `EXPORT_TOKEN` 呼叫 `/api/export` 回傳 401；CTO 角色／正確權杖方能回傳 200 之 `.xlsx` 檔案 ✅ |
+| — | 個別帳號與稽核紀錄 | 停用帳號後無法再登入（401）；登入與匯出動作皆正確寫入 `AdminAuditLog` 並可追溯操作帳號 ✅ |
 
 **待正式憑證到位方能完整驗證，目前僅能確認「程式路徑正確執行、log 已記錄」：**
 
@@ -300,7 +320,7 @@ SQLite 是單一檔案（`prisma/dev.db`），寫入的資料就存在「跑這�
 ## 待確認事項（可轉知 Lindy／公關）
 
 1. 感謝頁與確認信文案：既有靜態設計稿載明「7 個工作天內」通知審核結果，惟文件 §8.1/8.2 官方文案未含此句——目前程式碼採用文件官方版本（不載明天數）。
-2. `/admin` 共用密碼之交付方式尚待確認（目前僅你方持有）。
+2. `/admin` 已改為個別帳號登入；目前僅有一組 CTO 帳號（由 `seed:admin` 建立），公關的 PR 角色帳號請於 `/admin/accounts` 建立後交付對應人員，交付方式（帳號密碼如何轉交）尚待確認。
 3. `agatha-ai.com` 之部署與 DNS 設定，已改由主管方負責，本次交付範圍未涵蓋此項；**請轉知主管一項技術限制**：部署主機須為持久化硬碟類型（例如一般 VM／VPS，或 Render／Railway／Fly.io 勾選 persistent volume 的方案），**不能是 Vercel 預設的 serverless 部署**，否則純 SQLite 寫入的報名資料可能遺失（詳見「資料庫架構」一節）。
 
 ---
@@ -310,8 +330,8 @@ SQLite 是單一檔案（`prisma/dev.db`），寫入的資料就存在「跑這�
 - **8/10 前**：由主管方完成部署與網域設定；工程端僅需確認部署主機屬於「持久化硬碟」類型（見上方「資料庫架構」），純 SQLite 即可運作，不強制要求 Turso。
 - **8/11**：開放報名並投放廣告，此時 GTM／GA4／Meta 像素／交易信憑證須全數補齊至 `.env`。
 - **9/7**：官網首頁上線（同網域並存，不在本次交付範圍）。
-- **9/12 前**：公關以 Excel 報名名單寄送行前通知——使用 `npm run export:registrations` 產出之 CSV。
-- **Phase B**（不阻塞 8/10）：`/admin` 由單一共用密碼升級為個別帳號＋角色權限；Ragic 即時串接（目前為 no-op stub）。
+- **9/12 前**：公關以 Excel 報名名單寄送行前通知——使用 `npm run export:registrations` 或 `/admin` 內建按鈕產出之 `.xlsx`。
+- **Phase B**（不阻塞 8/10）：Ragic 即時串接（目前為 no-op stub）；CMS 範圍擴及 Banner／講者／夥伴／表單欄選項清單。
 
 ---
 
@@ -325,8 +345,10 @@ SQLite 是單一檔案（`prisma/dev.db`），寫入的資料就存在「跑這�
 | 落地頁移植（`/seminar/0915`） | `done` | 文案／樣式 1:1 沿用原型 |
 | 報名 API（`/api/register`） | `done` | 驗證、冪等性、fire-and-forget 均已測試 |
 | 感謝頁（`/seminar/0915/thanks`） | `done` | 含加入行事曆、`registration_submit` |
-| 後台（`/admin`） | `done` | V1 單密碼；已測試登入／篩選／標記／重寄信 |
-| CTO 專用匯出（腳本 + `/api/export`） | `done` | 已測試 `ADMIN_PASSWORD` 無法存取此端點 |
+| 後台（`/admin`） | `done` | 個別帳號＋角色（CTO／PR）登入；已測試登入／篩選／標記／重寄信 |
+| 帳號管理（`/admin/accounts`） | `done` | CTO 專屬；新增／停用／重設密碼皆已測試，API 與頁面層皆拒絕 PR 角色存取 |
+| 名單匯出（`.xlsx`，CLI＋`/admin` 按鈕＋`/api/export`） | `done` | 已測試 PR 角色 403、CTO 角色 200 且輸出為有效 `.xlsx`；動作皆寫入稽核紀錄 |
+| 稽核紀錄（`AdminAuditLog`） | `done` | 登入、匯出動作已記錄並可追溯操作帳號 |
 | README／`devlog.md` | `done` | 依 phase 持續更新中 |
 | 本機端到端驗證（§12 測試表工程可測部分） | `done` | 詳見上方測試表 |
 | 獨立 QA 測試（`qa/test-log-2026-08-04.md`） | `done` | 20 Pass／3 Blocked／0 Fail，未發現程式碼缺陷 |
@@ -339,9 +361,10 @@ SQLite 是單一檔案（`prisma/dev.db`），寫入的資料就存在「跑這�
 | 視覺截圖驗收（RWD／動畫） | `open` | 本次瀏覽器分頁未顯示畫面合成，僅驗證 DOM／互動邏輯，未執行截圖比對 |
 | 🟠🩷🟣 正式 GA4／Meta／交易信／Ragic 憑證 | `open` | 分別待 Lindy／公關公司／公司財務提供，非工程可自行產生 |
 | `agatha-ai.com` 部署與 DNS | `open` | 須由你方親自操作或授權，本次交付範圍未涵蓋 |
-| `/admin` 共用密碼交接予公關 | `open` | 目前僅你方持有密碼，交付方式待你方決定 |
+| PR 角色帳號交接予公關 | `open` | 目前僅有一組 CTO 帳號，需於 `/admin/accounts` 建立 PR 帳號後決定交付方式 |
 | 感謝頁／確認信文案「7 個工作天」版本 | `open` | 待你方或 Lindy 確認採用版本 |
-| Phase B：`/admin` 個別帳號＋角色權限 | `open` | 不阻塞 8/10，V1 先採單一密碼；v3 文件已明確要求，優先度提高 |
 | Phase B：Ragic 即時串接 | `open` | 目前為 no-op stub，待 Ragic API token |
 | 議程後台管理（`/admin/agenda`） | `done` | 對照交接文件 v3 新需求；OpenSpec 規格＋實作皆完成，已於瀏覽器驗證 CRUD／排序／權限，`npm run build` 通過 |
-| v3 其餘新需求（Excel 匯出、CMS 其他區塊、公關個別帳號、新子網域） | `open` | 已記錄於「交接文件 v3 更新對照」，尚未排入開發，需個別確認優先順序 |
+| 個別帳號＋角色權限（`admin-accounts`） | `done` | 對照交接文件 v3 §6.9；OpenSpec 規格＋實作皆完成，`ADMIN_PASSWORD` 已移除，改為 email／密碼登入 |
+| Excel 匯出（`.xlsx`，角色限定＋稽核紀錄）（`data-export` 更新） | `done` | 對照交接文件 v3；CSV 改為 `.xlsx`，PR 角色不可達，動作記錄稽核紀錄 |
+| v3 其餘新需求（CMS 其他區塊、新子網域） | `open` | 已記錄於「交接文件 v3 更新對照」，尚未排入開發，需個別確認優先順序 |

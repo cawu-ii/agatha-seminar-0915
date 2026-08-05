@@ -3,21 +3,6 @@
 ## Purpose
 Gives the PR partner a way to see and work registrations (view, filter, mark, resend confirmation) through a shared-password-protected console, while structurally preventing the delete and bulk-export actions the handoff doc explicitly withholds from that role.
 ## Requirements
-### Requirement: Admin console requires a shared password
-The system SHALL require a correct shared admin password before granting access to any `/admin` route, and SHALL reject access without it.
-
-#### Scenario: No session
-- **WHEN** a browser requests an `/admin` route without a valid session
-- **THEN** it is redirected to a login page and no registration data is returned
-
-#### Scenario: Correct password
-- **WHEN** the visitor submits the correct admin password
-- **THEN** a session is established and subsequent `/admin` requests succeed until the session expires
-
-#### Scenario: Incorrect password
-- **WHEN** the visitor submits an incorrect password
-- **THEN** access is denied and no session is established
-
 ### Requirement: Registrations can be viewed, searched, and filtered
 The system SHALL let an authenticated admin session list registrations and filter/search by at least UTM source, UTM content, department, industry, and review status.
 
@@ -47,9 +32,13 @@ The system SHALL NOT expose any control in `/admin` that deletes or modifies a r
 - **THEN** no delete or edit-core-fields control is present or reachable
 
 ### Requirement: The console provides no bulk export action
-The system SHALL NOT expose any control in `/admin` that exports multiple registrations at once (CSV, Excel, or otherwise). Bulk export exists only outside this console, per the data-export capability.
+The system SHALL NOT expose any control to a PR-role session in `/admin` that exports multiple registrations at once (CSV, Excel, or otherwise). CTO-role sessions may access bulk export (see `data-export`).
 
 #### Scenario: Inspecting available admin actions
-- **WHEN** an admin views the registration list
+- **WHEN** a PR-role account views the registration list
 - **THEN** no bulk-export/download-all control is present or reachable
+
+#### Scenario: CTO-role session inspects available actions
+- **WHEN** a CTO-role account views the registration list
+- **THEN** a bulk-export control is present and reachable
 

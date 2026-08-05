@@ -11,12 +11,15 @@
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
     "export:registrations": "tsx scripts/export-registrations.ts",
-    "seed:agenda": "tsx prisma/seed-agenda.ts"
+    "seed:agenda": "tsx prisma/seed-agenda.ts",
+    "seed:admin": "tsx prisma/seed-admin.ts"
   },
   "dependencies": {
     "@libsql/client": "^0.17.4",
     "@prisma/adapter-libsql": "^6.19.3",
     "@prisma/client": "^6.2.1",
+    "bcryptjs": "^3.0.3",
+    "exceljs": "^4.4.0",
     "next": "^15.1.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -24,6 +27,7 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^22.10.5",
     "@types/react": "^19.0.4",
     "@types/react-dom": "^19.0.2",
