@@ -28,6 +28,8 @@ export function FormOptionsTable() {
   const [editValue, setEditValue] = useState("");
   const [newValueByField, setNewValueByField] = useState<Record<string, string>>({});
   const [errorByField, setErrorByField] = useState<Record<string, string>>({});
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [overId, setOverId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -52,6 +54,49 @@ export function FormOptionsTable() {
   useEffect(() => {
     load();
   }, [load]);
+
+  const persistReorder = useCallback(
+    async (fromId: string, toId: string) => {
+      const fromItem = options.find((o) => o.id === fromId);
+      const toItem = options.find((o) => o.id === toId);
+      // Cross-field drags don't make sense (each field's option list is independent) - ignore.
+      if (!fromItem || !toItem || fromItem.field !== toItem.field || fromId === toId) return;
+      const field = fromItem.field;
+      const fieldItems = options.filter((o) => o.field === field).sort((a, b) => a.sortOrder - b.sortOrder);
+      const fromIdx = fieldItems.findIndex((i) => i.id === fromId);
+      const toIdx = fieldItems.findIndex((i) => i.id === toId);
+      if (fromIdx === -1 || toIdx === -1) return;
+      const nextFieldItems = [...fieldItems];
+      const [moved] = nextFieldItems.splice(fromIdx, 1);
+      nextFieldItems.splice(toIdx, 0, moved);
+
+      // Optimistic update: keep other fields' options untouched, splice in the new order for this field.
+      setOptions((prev) => [...prev.filter((o) => o.field !== field), ...nextFieldItems]);
+      setBusyId(fromId);
+      await fetch(`/api/admin/form-options/${field}/reorder`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: nextFieldItems.map((i) => i.id) }),
+      });
+      await load();
+      setBusyId(null);
+    },
+    [options, load]
+  );
+
+  useEffect(() => {
+    if (!dragId) return;
+    function onUp() {
+      if (dragId && overId && dragId !== overId) {
+        persistReorder(dragId, overId);
+      }
+      setDragId(null);
+      setOverId(null);
+    }
+    window.addEventListener("mouseup", onUp);
+    return () => window.removeEventListener("mouseup", onUp);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dragId, overId]);
 
   async function createOption(field: string, e: React.FormEvent) {
     e.preventDefault();
@@ -113,17 +158,6 @@ export function FormOptionsTable() {
     await load();
   }
 
-  async function move(field: string, id: string, direction: "up" | "down") {
-    setBusyId(id);
-    await fetch(`/api/admin/form-options/${field}/${id}/move`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ direction }),
-    });
-    await load();
-    setBusyId(null);
-  }
-
   if (loading) return <p style={{ color: "#5f7268" }}>載入中…</p>;
   if (loadError) return <p className="admin__error">{loadError}</p>;
 
@@ -139,13 +173,13 @@ export function FormOptionsTable() {
               <table>
                 <thead>
                   <tr>
-                    <th>順序</th>
+                    <th></th>
                     <th>選項內容</th>
                     <th>操作</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {items.map((item, idx) =>
+                  {items.map((item) =>
                     editingId === item.id ? (
                       <tr key={item.id}>
                         <td colSpan={3}>
@@ -166,26 +200,17 @@ export function FormOptionsTable() {
                         </td>
                       </tr>
                     ) : (
-                      <tr key={item.id}>
+                      <tr
+                        key={item.id}
+                        className={`${dragId === item.id ? "dragrow--dragging" : ""} ${
+                          overId === item.id && dragId && dragId !== item.id ? "dragrow--over" : ""
+                        }`}
+                        onMouseEnter={() => dragId && setOverId(item.id)}
+                      >
                         <td>
-                          <div style={{ display: "flex", gap: 4 }}>
-                            <button
-                              type="button"
-                              className="small"
-                              disabled={busyId === item.id || idx === 0}
-                              onClick={() => move(key, item.id, "up")}
-                            >
-                              ↑
-                            </button>
-                            <button
-                              type="button"
-                              className="small"
-                              disabled={busyId === item.id || idx === items.length - 1}
-                              onClick={() => move(key, item.id, "down")}
-                            >
-                              ↓
-                            </button>
-                          </div>
+                          <span className="draghandle" title="拖曳排序" onMouseDown={() => setDragId(item.id)}>
+                            ☰
+                          </span>
                         </td>
                         <td>{item.value}</td>
                         <td style={{ display: "flex", gap: 6 }}>

@@ -20,6 +20,8 @@ export function HighlightTable() {
   const [editForm, setEditForm] = useState(EMPTY_FORM);
   const [newForm, setNewForm] = useState(EMPTY_FORM);
   const [formError, setFormError] = useState<string | null>(null);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [overId, setOverId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -44,6 +46,41 @@ export function HighlightTable() {
   useEffect(() => {
     load();
   }, [load]);
+
+  const persistReorder = useCallback(
+    async (fromId: string, toId: string) => {
+      const fromIdx = items.findIndex((i) => i.id === fromId);
+      const toIdx = items.findIndex((i) => i.id === toId);
+      if (fromIdx === -1 || toIdx === -1 || fromIdx === toIdx) return;
+      const next = [...items];
+      const [moved] = next.splice(fromIdx, 1);
+      next.splice(toIdx, 0, moved);
+      setItems(next);
+      setBusyId(fromId);
+      await fetch("/api/admin/highlights/reorder", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: next.map((i) => i.id) }),
+      });
+      await load();
+      setBusyId(null);
+    },
+    [items, load]
+  );
+
+  useEffect(() => {
+    if (!dragId) return;
+    function onUp() {
+      if (dragId && overId && dragId !== overId) {
+        persistReorder(dragId, overId);
+      }
+      setDragId(null);
+      setOverId(null);
+    }
+    window.addEventListener("mouseup", onUp);
+    return () => window.removeEventListener("mouseup", onUp);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dragId, overId]);
 
   async function createItem(e: React.FormEvent) {
     e.preventDefault();
@@ -101,17 +138,6 @@ export function HighlightTable() {
     setBusyId(null);
   }
 
-  async function move(id: string, direction: "up" | "down") {
-    setBusyId(id);
-    await fetch(`/api/admin/highlights/${id}/move`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ direction }),
-    });
-    await load();
-    setBusyId(null);
-  }
-
   return (
     <div>
       {loadError && <p className="admin__error">{loadError}</p>}
@@ -123,14 +149,14 @@ export function HighlightTable() {
           <table>
             <thead>
               <tr>
-                <th>順序</th>
+                <th></th>
                 <th>標題</th>
                 <th>內容</th>
                 <th>操作</th>
               </tr>
             </thead>
             <tbody>
-              {items.map((item, idx) =>
+              {items.map((item) =>
                 editingId === item.id ? (
                   <tr key={item.id}>
                     <td colSpan={4}>
@@ -160,26 +186,17 @@ export function HighlightTable() {
                     </td>
                   </tr>
                 ) : (
-                  <tr key={item.id}>
+                  <tr
+                    key={item.id}
+                    className={`${dragId === item.id ? "dragrow--dragging" : ""} ${
+                      overId === item.id && dragId && dragId !== item.id ? "dragrow--over" : ""
+                    }`}
+                    onMouseEnter={() => dragId && setOverId(item.id)}
+                  >
                     <td>
-                      <div style={{ display: "flex", gap: 4 }}>
-                        <button
-                          type="button"
-                          className="small"
-                          disabled={busyId === item.id || idx === 0}
-                          onClick={() => move(item.id, "up")}
-                        >
-                          ↑
-                        </button>
-                        <button
-                          type="button"
-                          className="small"
-                          disabled={busyId === item.id || idx === items.length - 1}
-                          onClick={() => move(item.id, "down")}
-                        >
-                          ↓
-                        </button>
-                      </div>
+                      <span className="draghandle" title="拖曳排序" onMouseDown={() => setDragId(item.id)}>
+                        ☰
+                      </span>
                     </td>
                     <td>{item.title}</td>
                     <td style={{ maxWidth: 360, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
