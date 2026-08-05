@@ -400,5 +400,5 @@ SQLite 是單一檔案（`prisma/dev.db`），寫入的資料就存在「跑這�
 | Excel 匯出（`.xlsx`，角色限定＋稽核紀錄）（`data-export` 更新） | `done` | 對照交接文件 v3；CSV 改為 `.xlsx`，PR 角色不可達，動作記錄稽核紀錄 |
 | 講者／夥伴／亮點 CMS（`/admin/speakers`、`/admin/partners`、`/admin/highlights`） | `done` | 對照交接文件 v3 §6.2；OpenSpec 規格＋實作皆完成，CTO／PR 皆可操作，已於瀏覽器驗證 CRUD／排序，`npm run build` 通過；圖片僅支援貼網址，尚無上傳功能（見下方） |
 | 表單選項清單 CMS（`/admin/form-options`） | `done` | 對照交接文件 v3 §6.2；範圍限定選項清單（非完整表單建構器，已與你確認）；報名驗證 schema 改為依當下選項動態建立並已驗證與落地頁同步、拒絕已刪除的舊選項值、最後一個選項不可刪除 |
-| Banner 上傳／活動資訊 CMS 規格（[`openspec/changes/add-banner-event-info-cms/`](openspec/changes/add-banner-event-info-cms/)） | `open`（規格已完成） | 對照交接文件 v3 §6.2 逐字引用（含 Banner 桌機 2560×1440／手機 1080×1350 精確尺寸）；proposal／design／specs 皆已寫完並通過 `openspec validate --strict`，**刻意尚未實作**——這是本專案第一個真的需要檔案上傳的功能，design.md 留了 4 個待決定的開放問題（尺寸不符要拒絕還是警告、要不要伺服器端壓縮、舊檔案怎麼清、要不要預覽），等你或工程排入下一輪再決定 |
+| Banner 上傳／活動資訊 CMS 規格（[`openspec/changes/add-banner-event-info-cms/`](openspec/changes/add-banner-event-info-cms/)） | `open`（規格已完成，設計決策已定案） | 對照交接文件 v3 §6.2 逐字引用（含 Banner 桌機 2560×1440／手機 1080×1350 精確尺寸）；proposal／design／specs 皆已寫完並通過 `openspec validate --strict`。design.md 原本留的 4 個開放問題已於 2026/08/05 與你確認定案：尺寸不符**直接拒絕上傳**、**不做**伺服器端壓縮（原檔案照存）、換圖時**直接刪除**舊檔、後台**不做**預覽功能（上傳後直接看正式站確認）。**隨時可以排入實作**，沒有卡住的決策 |
 | 新子網域部署 | `open` | 已記錄於「交接文件 v3 更新對照」，純部署/DNS 層級，非工程範圍 |

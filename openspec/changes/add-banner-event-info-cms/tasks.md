@@ -1,4 +1,4 @@
-**None of the tasks below have been started. This change is spec-only for now (proposal.md/design.md/specs/ are complete) — implementation was explicitly deferred. Resolve design.md's Open Questions (especially #1 and #3) before starting section 3.**
+**None of the tasks below have been started. This change is spec-only for now (proposal.md/design.md/specs/ are complete) — implementation was explicitly deferred. design.md's four open questions were resolved with the user on 2026/08/05 (hard-reject on dimension mismatch, no server-side resize, delete old file on replace, no admin preview) — nothing blocks starting section 3 once this is picked up.**
 
 ## 1. Data model
 
@@ -10,8 +10,8 @@
 ## 2. Upload infrastructure (new for this project - see design.md)
 
 - [ ] 2.1 Add an image-dimension-checking dependency (e.g. `image-size`)
-- [ ] 2.2 Decide and implement the dimension-mismatch policy (design.md Open Question #1)
-- [ ] 2.3 Decide and implement old-file cleanup on replace (design.md Open Question #3)
+- [ ] 2.2 Implement hard-reject on dimension mismatch (confirmed decision, design.md) - clear error stating required vs. received dimensions
+- [ ] 2.3 Implement immediate old-file deletion on replace (confirmed decision, design.md) - no rollback copy, no accumulation
 - [ ] 2.4 `public/uploads/` added to `.gitignore`
 - [ ] 2.5 Flag to whoever owns `DEPLOYMENT.md`'s backup section that `public/uploads/` needs to be included once a backup strategy exists (currently: none - see `DEPLOYMENT.md`)
 
@@ -44,7 +44,7 @@
 - [ ] 7.2 Seed event-info, confirm the landing page's Event Info section renders identically to the hardcoded version it replaces
 - [ ] 7.3 Confirm the landing page renders sanely with no banner uploaded yet (fallback behavior)
 - [ ] 7.4 Upload a correctly-sized desktop and mobile banner via the actual admin UI in a browser, confirm both appear correctly on the landing page at the corresponding viewport widths
-- [ ] 7.5 Upload an incorrectly-sized image and confirm the implemented dimension-mismatch policy (reject or warn, per design.md Open Question #1) behaves as decided
+- [ ] 7.5 Upload an incorrectly-sized image and confirm it's rejected with a clear error stating the required dimensions
 - [ ] 7.6 Edit an event-info fact via the actual admin UI, confirm it reflects on the landing page and the other 3 facts are unchanged
 - [ ] 7.7 Confirm there is no add/delete control anywhere in the event-info admin UI
 - [ ] 7.8 Unauthenticated request to each new admin API and admin page rejected (existing middleware coverage)
