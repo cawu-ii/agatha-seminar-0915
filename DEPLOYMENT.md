@@ -47,7 +47,7 @@ cp .env.example .env
 | `SESSION_SECRET` | **不要沿用本機開發用的值**，正式環境要重新產生一組：`node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
 | `EXPORT_TOKEN` | 同上，正式環境重新產生一組隨機字串，跟 `SESSION_SECRET` 用不同的值。這組只給你自己（CTO）保管，不會交給公關 |
 | `INITIAL_CTO_EMAIL` / `INITIAL_CTO_PASSWORD` | 填你要用來登入的 email 與一組**正式強度**的密碼（不要用 `.env.example` 裡的 `change-me-then-forget-it` 佔位字串）。這兩個變數只在 `npm run seed:admin` 執行的當下被讀取一次，建立完第一個 CTO 帳號後就不再被程式讀取，但建議帳號建立成功、確認能登入後，把 `.env` 裡這兩行刪掉或清空，避免密碼明文長期留在檔案裡 |
-| `NEXT_PUBLIC_GTM_ID` / `NEXT_PUBLIC_GA4_ID` | 若還沒拿到憑證，留空即可，網站不會注入追蹤腳本，不影響運作 |
+| `NEXT_PUBLIC_GTM_ID` / `NEXT_PUBLIC_GA4_ID` | **已定案（2026/08/06）**：`NEXT_PUBLIC_GTM_ID` 填 `GTM-M6P5QTRM`（湧現／Lindy 自建容器）；`NEXT_PUBLIC_GA4_ID` 填 `G-C2D5DC3DLS`（僅供備忘，程式碼不直接讀取，實際由 GTM 容器內的 Tag 管理）。若部署當下這兩個值又變動，以最新交接文件為準，留空也安全（不影響運作，只是不注入追蹤腳本） |
 | `META_CAPI_TOKEN` / `META_PIXEL_ID` | 同上，留空即為安全的 no-op |
 | `EMAIL_PROVIDER` / `RESEND_API_KEY` / `EMAIL_FROM` | 若交易信帳號還沒到位，`EMAIL_PROVIDER` 留 `none`，程式只會 log 不會寄信、也不會報錯 |
 | `RAGIC_API_TOKEN` / `RAGIC_BASE_URL` | 目前是 no-op stub，留空即可 |
@@ -87,16 +87,21 @@ npx prisma migrate deploy
 #    看起來像密碼設錯了，其實是資料庫裡根本沒有任何帳號可以比對。
 npm run seed:admin
 
-# 6) 灌入內容初始資料（議程／講者／合作夥伴／活動亮點／報名表單選項清單）
-#    ***這五行也務必都要跑，不要跳過*** —— 前四行沒跑，對應區塊在落地頁上會是
-#    空白（不是壞掉，是還沒有資料）；***最後一行 seed:form-options 沒跑則更嚴重***：
+# 6) 灌入內容初始資料（議程／講者／合作夥伴／活動亮點／報名表單選項清單／活動資訊）
+#    ***這六行也務必都要跑，不要跳過*** —— 前四行沒跑，對應區塊在落地頁上會是
+#    空白（不是壞掉，是還沒有資料）；***seed:form-options 沒跑則更嚴重***：
 #    報名表單會沒有選項可選，且 POST /api/register 會直接 500，等於報名功能整個
-#    壞掉，不只是某個區塊空白而已
+#    壞掉，不只是某個區塊空白而已。seed:event-info 沒跑，落地頁「活動資訊」四張
+#    卡片會直接不顯示對應卡片（不會報錯，元件逐筆檢查資料是否存在）
 npm run seed:agenda
 npm run seed:speakers
 npm run seed:partners
 npm run seed:highlights
 npm run seed:form-options
+npm run seed:event-info
+# 注意：Banner 沒有對應的 seed 指令，全新環境本就是「尚未上傳」狀態，
+# 需要有人登入 /admin/banner 實際上傳桌機（2560×1440）與手機（1080×1350）
+# 圖片，Hero Banner 區塊才會顯示；上線前檢查清單有把這步列進去
 
 # 7) build 正式版本
 npm run build
@@ -152,7 +157,8 @@ pm2 save
 
 在告知主管方「可以掛網域了」之前，先在 EC2 本機（或透過 SSH port-forward：`ssh -L 3000:localhost:3000 <你的 EC2>`，再用自己電腦瀏覽器連 `http://localhost:3000`）走過一次：
 
-- [ ] `/seminar/0915` 落地頁能正常開啟，議程／講者／合作夥伴／活動亮點四個區塊都有內容（不是空白）——這四個各對應一個 seed 指令，任一個忘記跑就會有一區是空的
+- [ ] `/seminar/0915` 落地頁能正常開啟，議程／講者／合作夥伴／活動亮點／活動資訊五個區塊都有內容（不是空白）——這五個各對應一個 seed 指令，任一個忘記跑就會有一區是空的
+- [ ] 登入 `/admin/banner` 上傳桌機（2560×1440）與手機（1080×1350）Hero Banner 圖片，回落地頁確認依裝置寬度正確切換顯示（未上傳前 Hero Banner 區塊不顯示是正常狀態，不是壞掉）
 - [ ] 報名表單每個欄位（部門/職稱/產業/規模/議程興趣/導入階段/諮詢議題）都看得到選項，不是空的下拉/清單——對應 `seed:form-options`，這步沒跑報名功能會直接故障，不只是畫面好看與否的問題
 - [ ] 實際填一筆測試報名並送出成功（不是只看表單畫面）——這一步同時驗證了 `seed:form-options` 有跑，以及動態驗證 schema 跟表單畫面的選項是同步的
 - [ ] 填一筆測試報名資料送出，能正常導向 `/seminar/0915/thanks`
@@ -195,13 +201,13 @@ pm2 restart agatha-seminar
 
 ## 仍待補齊的第三方憑證
 
-以下憑證目前皆為留空、安全 no-op 狀態，不影響上線與報名流程，待對應窗口提供後填入 `.env` 並 `pm2 restart agatha-seminar` 即可啟用，不需要改程式碼：
+以下憑證除 `NEXT_PUBLIC_GTM_ID`／`NEXT_PUBLIC_GA4_ID`（已於 2026/08/06 定案，見上方環境變數表）外，其餘皆為留空、安全 no-op 狀態，不影響上線與報名流程，待對應窗口提供後填入 `.env` 並 `pm2 restart agatha-seminar` 即可啟用，不需要改程式碼：
 
 | 憑證 | 提供窗口 |
 |---|---|
-| `NEXT_PUBLIC_GTM_ID` | 行銷（Lindy） |
-| `META_CAPI_TOKEN` / `META_PIXEL_ID` | 公關公司 |
-| `RESEND_API_KEY`（含寄件網域 SPF/DKIM 設定） | 公司（BD／財務申辦交易信帳號） |
-| `RAGIC_API_TOKEN` / `RAGIC_BASE_URL` | 公司／行銷 |
+| `NEXT_PUBLIC_GTM_ID` / `NEXT_PUBLIC_GA4_ID` | ✅ 已提供（`GTM-M6P5QTRM` / `G-C2D5DC3DLS`），部署時直接填入即可 |
+| `META_CAPI_TOKEN` / `META_PIXEL_ID` | 鼎東（公關公司技術團隊） |
+| `RESEND_API_KEY`（含寄件網域 SPF/DKIM/DMARC 設定） | 公司（BD／財務申辦交易信帳號） |
+| `RAGIC_API_TOKEN` / `RAGIC_BASE_URL` | 不需要——交接文件明確「不串接 Ragic」，這組留空即可，永久 no-op |
 
 詳細對照見 [README.md](README.md) 的「`.env` 環境變數說明」一節。
