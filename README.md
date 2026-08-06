@@ -369,7 +369,7 @@ SQLite 是單一檔案（`prisma/dev.db`），寫入的資料就存在「跑這�
 
 1. ~~感謝頁與確認信文案「7 個工作天」版本~~——**已確認（2026/08/05）**：採用文件官方版本（不載明天數），與目前程式碼一致，不需改動。
 2. `/admin` 已改為個別帳號登入；目前僅有一組 CTO 帳號（由 `seed:admin` 建立），公關的 PR 角色帳號請於 `/admin/accounts` 建立後交付對應人員，交付方式（帳號密碼如何轉交）尚待確認。
-3. `agatha-ai.com` 之部署與 DNS 設定，已改由主管方負責，本次交付範圍未涵蓋此項；**請轉知主管一項技術限制**：部署主機須為持久化硬碟類型（例如一般 VM／VPS，或 Render／Railway／Fly.io 勾選 persistent volume 的方案），**不能是 Vercel 預設的 serverless 部署**，否則純 SQLite 寫入的報名資料可能遺失（詳見「資料庫架構」一節）。
+3. ~~`agatha-ai.com` 之部署與 DNS 設定~~——**已確認（2026/08/06）**：主管方已知悉並會親自處理，含持久化硬碟主機類型的技術限制，工程端不需再追蹤此項。
 4. **（2026/08/06 新增）確認信寄件網域須完成 SPF／DKIM／DMARC 三項 DNS 設定**（0805 文件 §6.8 明確列出）——這是網域層級設定，工程端無法自行完成，需請掌管 `emergence.today`／`agatha-ai.com` DNS 的窗口協助設定，並在申辦交易信服務帳號（Resend）時一併完成網域驗證，否則確認信可能被判定為垃圾郵件或直接退信。
 5. **（2026/08/06 新增）GTM／GA4 真實 ID 已提供**（`GTM-M583KSV7`／`G-C2D5DC3DLS`），需要在正式部署時填入 `.env` 的 `NEXT_PUBLIC_GTM_ID`（`NEXT_PUBLIC_GA4_ID` 僅供備忘）；另請鼎東確認是否已依文件 §5.1 取得該 GTM 容器的擁有者／管理員權限（`marketing@emergence.today`）。
 
@@ -411,8 +411,8 @@ SQLite 是單一檔案（`prisma/dev.db`），寫入的資料就存在「跑這�
 | 🩷 GTM／GA4 真實 ID | `done` | 2026/08/06 文件更新已提供：`GTM-M583KSV7`／`G-C2D5DC3DLS`；尚待部署時填入正式環境 `.env` |
 | 🟣 正式交易信／Ragic 憑證 | `open` | 分別待公司財務／BD 提供，非工程可自行產生 |
 | 🩷 Meta Pixel／Pixel Tag／Trigger 建立與測試 | `open` | 改由鼎東技術團隊於 GTM／Meta Business Manager 設定與驗證，非本專案程式碼範圍 |
-| `agatha-ai.com` 部署與 DNS | `open` | 須由你方親自操作或授權，本次交付範圍未涵蓋 |
-| PR 角色帳號交接予公關 | `open` | 目前僅有一組 CTO 帳號，需於 `/admin/accounts` 建立 PR 帳號後決定交付方式 |
+| `agatha-ai.com` 部署與 DNS | `ongoing` | 2026/08/06 確認由主管方親自處理，工程端不再追蹤此項細節 |
+| PR 角色帳號交接予公關 | `done` | 2026/08/06：主管已建立 PR 帳號並直接交付公關 |
 | 感謝頁／確認信文案「7 個工作天」版本 | `done` | 2026/08/05 已確認採用文件官方版本（不載明天數），與現行程式碼一致 |
 | Phase B：Ragic 即時串接 | `open` | 目前為 no-op stub，待 Ragic API token |
 | 議程後台管理（`/admin/agenda`） | `done` | 對照交接文件 v3 新需求；OpenSpec 規格＋實作皆完成，已於瀏覽器驗證 CRUD／排序／權限，`npm run build` 通過 |
