@@ -29,6 +29,13 @@ export default async function SeminarLandingPage() {
   const formOptions = await loadFormOptions().catch(
     (): FormOptionsByField => ({ dept: [], title: [], industry: [], size: [], sessions: [], stage: [], consult: [] })
   );
+  // Banner/EventInfo are PR-editable via /admin (openspec:
+  // add-banner-event-info-cms), same fail-safe pattern as the queries above.
+  // No banner uploaded yet -> banner stays null -> the existing CSS-only
+  // hero renders exactly as before (the required fallback).
+  const banner = await prisma.banner.findUnique({ where: { id: "singleton" } }).catch(() => null);
+  const eventInfoFacts = await prisma.eventInfo.findMany().catch(() => []);
+  const eventInfoByField = Object.fromEntries(eventInfoFacts.map((f) => [f.field, f]));
 
   return (
     <>
@@ -46,6 +53,17 @@ export default async function SeminarLandingPage() {
           </div>
         </div>
       </header>
+
+      {(banner?.desktopUrl || banner?.mobileUrl) && (
+        <div className="hero-banner">
+          {banner.desktopUrl && (
+            <img className="hero-banner--desktop" src={banner.desktopUrl} alt={banner.altText || "Agatha Forum 2026"} />
+          )}
+          {banner.mobileUrl && (
+            <img className="hero-banner--mobile" src={banner.mobileUrl} alt={banner.altText || "Agatha Forum 2026"} />
+          )}
+        </div>
+      )}
 
       <section className="hero">
         <div className="hero__fx">
@@ -210,42 +228,44 @@ export default async function SeminarLandingPage() {
             <h2>活動資訊</h2>
           </div>
           <div className="facts">
-            <div className="glass fact">
-              <b>Date</b>
-              <p>
-                2026.09.15
-                <br />
-                <small>星期二</small>
-              </p>
-            </div>
-            <div className="glass fact">
-              <b>Time</b>
-              <p>
-                13:30–16:30
-                <br />
-                <small>共 3 小時</small>
-              </p>
-            </div>
-            <div className="glass fact">
-              <b>Venue</b>
-              <p>
-                華南銀行
-                <br />
-                國際會議中心
-                <small>
-                  <br />
-                  台北
-                </small>
-              </p>
-            </div>
-            <div className="glass fact">
-              <b>Access</b>
-              <p>
-                免費參加
-                <br />
-                <small>採資格審核 · 名額有限</small>
-              </p>
-            </div>
+            {(
+              [
+                { key: "DATE", label: "Date" },
+                { key: "TIME", label: "Time" },
+                { key: "VENUE", label: "Venue" },
+                { key: "ACCESS", label: "Access" },
+              ] as const
+            ).map(({ key, label }) => {
+              const fact = eventInfoByField[key];
+              if (!fact) return null; // not seeded yet - skip this card rather than crash
+              return (
+                <div className="glass fact" key={key}>
+                  <b>{label}</b>
+                  <p>
+                    {fact.line1}
+                    {fact.line2 ? (
+                      <>
+                        <br />
+                        {fact.line2}
+                      </>
+                    ) : null}
+                    {fact.subText ? (
+                      fact.line2 ? (
+                        <small>
+                          <br />
+                          {fact.subText}
+                        </small>
+                      ) : (
+                        <>
+                          <br />
+                          <small>{fact.subText}</small>
+                        </>
+                      )
+                    ) : null}
+                  </p>
+                </div>
+              );
+            })}
           </div>
         </div>
       </section>

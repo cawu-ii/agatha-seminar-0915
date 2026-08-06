@@ -171,6 +171,7 @@ pm2 save
 
 - 排一個定期備份（例如 cron 每天把這個檔案複製一份到 S3，或直接對這顆 EBS volume 排 EBS snapshot），現在專案本身沒有內建備份機制。
 - 不要依賴 `npm run export:registrations` 產生的 `.xlsx` 當備份——那是給 Lindy／Ragic 用的名單匯出，不是資料庫備份，格式跟欄位範圍不保證跟資料庫結構一致。
+- `public/uploads/`（Banner 上傳圖片）跟 `prisma/dev.db` 一樣是這顆 EBS volume 上的真實檔案，不在 git 版控裡（`.gitignore`）。上面的備份排程一旦排定，請把這個資料夾一併納入，不要只備份資料庫檔案——否則還原時資料庫裡的 `Banner.desktopUrl`/`mobileUrl` 會指向不存在的檔案。
 - 再次提醒：**不能為了分攤流量而多開一台 EC2 各自跑一份**，會導致兩份資料庫各自累積、互相看不到對方的資料。真的有這個需求要提前跟我說，需要換架構（Turso 或 Postgres）。
 
 ---

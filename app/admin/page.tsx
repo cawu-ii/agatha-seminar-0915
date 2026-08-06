@@ -31,6 +31,12 @@ export default async function AdminPage() {
           <a className="btn btn--ghost" href="/admin/form-options">
             管理表單選項
           </a>
+          <a className="btn btn--ghost" href="/admin/banner">
+            管理 Banner
+          </a>
+          <a className="btn btn--ghost" href="/admin/event-info">
+            管理活動資訊
+          </a>
           {isCto && (
             <>
               <a className="btn btn--ghost" href="/admin/accounts">

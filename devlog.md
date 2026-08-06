@@ -499,3 +499,28 @@
 **同步更新：** `openspec/changes/update-tracking-integration/tasks.md` 全部項目勾選，`openspec validate --strict` 過後歸檔為 `2026-08-06-update-tracking-integration`。README 多處更新：專案說明（感謝頁描述）、與原型 HTML 差異表（追蹤事件說明、新增一列記錄這次更新）、交接文件 v3 更新對照（標題改成同時涵蓋 0804／0805-0806，新增一列）、角色與分工（鼎東角色範圍大幅擴大，明確標註 2026/08/06 更新）、系統資料流圖（GTM 節點的顏色/描述改成鼎東而非 Lindy、感謝頁到 GTM 的箭頭改成虛線＋外部設定說明，拿掉不再存在的 `lindy` 顏色類別）、新增「追蹤事件字典」獨立章節（對照文件 §6.6）、`.env` 變數說明表（GTM／GA4 真實值已知，負責窗口改成鼎東）、§12 測試表對照（GA4／Meta 測試項目改成鼎東負責、SPF/DKIM/DMARC 三項並列）、待確認事項（新增 SPF/DKIM/DMARC 與 GTM 權限確認兩項，皆標註 2026/08/06 新增）、後續規劃（8/11 時程行動補充憑證到位狀態）、專案進度追蹤表（新增 GTM／GA4 真實 ID 已到位、Meta Pixel 建置改鼎東負責兩列）。
 
 **下載並保留的原始文件**：`Agatha_Seminar_報名系統與追蹤_CTO交接文件_0805.docx` 已複製進專案根目錄（比照既有 0729／0804 兩版的做法），受 `.gitignore` 的 `Agatha_Seminar*CTO交接文件*.docx` 萬用字元規則保護，不會進版控。
+
+## Phase 31 — Banner 上傳＋活動資訊 CMS：實作＋驗證（`add-banner-event-info-cms` 落地）（2026-08-06）
+
+**做了什麼：** Phase 28 只寫了規格、刻意不實作；design.md 留的 4 個開放問題已於 2026/08/05 跟你確認定案（尺寸不符直接拒絕、不做伺服器端壓縮、換圖直接刪舊檔、後台不做預覽），這次照著已定案的規格直接落地實作，是本專案第一次真正的檔案上傳功能。
+
+- **資料模型**：`prisma/schema.prisma` 新增 `Banner`（單例，`id` 固定為 `"singleton"`，`desktopUrl`／`mobileUrl`／`altText` 三欄）與 `EventInfoField` enum ＋ `EventInfo` model（`field` 為 `@unique`，固定 4 筆：DATE／TIME／VENUE／ACCESS）。`npx prisma migrate dev` 建表；`prisma/seed-event-info.ts` 灌入現有寫死在 JSX 裡的 4 筆活動資訊內容，Banner 無對應 seed（起始為空，落地頁需優雅處理無圖狀態）。
+- **上傳基礎建設**：新增 `image-size` 套件做伺服器端尺寸校驗（`imageSize(bytes)` 同步回傳寬高，吃 `Uint8Array`）。圖片實際存放在本機磁碟 `public/uploads/banner/`（沿用這個專案「單一 EC2＋持久化硬碟」的既有部署模型，跟 `dev.db` 放在同一顆硬碟上，不需要額外接雲端儲存），已加入 `.gitignore`。
+- **`app/api/admin/banner/route.ts`**：GET 回傳目前 Banner；POST 吃 `multipart/form-data`（`slot`＝`desktop`/`mobile`＋`file`），驗證 MIME 類型、用 `image-size` 讀實際尺寸跟該插槽要求的精確尺寸（桌機 2560×1440／手機 1080×1350）比對，不符直接 400 並在錯誤訊息裡列出「需要的尺寸」與「收到的尺寸」；寫檔後 upsert 該插槽對應欄位，若舊檔存在且跟新檔不同則立即刪除（`unlink().catch(() => {})`，不做回滾備份）。
+- **`app/api/admin/event-info/route.ts`／`[field]/route.ts`**：前者 GET 全部 4 筆，後者**只有 PATCH，沒有 POST/DELETE**——用路由本身的形狀鎖死「只能編輯既有欄位，不能新增或刪除欄位」，不是靠 UI 客氣地不給按鈕。
+- **前端**：`BannerUploader.tsx`（兩張卡片：桌機／手機，各自顯示目前狀態「已上傳／尚未上傳」，`<input type="file">` 選檔後立即用 `FormData` 送出）、`EventInfoTable.tsx`（4 張固定卡片，各自一個「編輯」按鈕切換成 3 個輸入框＋儲存／取消，永遠沒有新增／刪除控制項）。兩者都沿用 Phase 29 修正過的「靜默重新載入」模式（`load(silent)`），操作後不會整頁閃一次 loading。
+- **落地頁串接**：`app/seminar/0915/page.tsx` 查詢 `Banner`／`EventInfo`（皆用 `.catch()` 容錯，沿用既有模式），Hero 區塊在有任一張圖時才渲染（`banner?.desktopUrl || banner?.mobileUrl`），活動資訊區塊把原本寫死的 4 個 `<div className="glass fact">` 改成對 `eventInfoByField` 的 `.map()`，逐一重建原本針對 Venue（有 `line2`）跟其他三項（無 `line2`）不同的 `<br/>`/`<small>` 巢狀邏輯，畫面結構跟原設計稿保持一致。
+
+**過程中發現並修正的一個真實 bug（不是規格問題，是這次實作時才浮現的 CSS 缺陷）：** 用瀏覽器驗證手機視窗時，發現桌機版跟手機版兩張圖同時顯示，沒有依斷點正確切換。追查後發現是 CSS specificity 問題：`.hero-banner img{display:block}`（class＋元素選擇器，優先度 (0,1,1)）的優先度**高於**單一 class 的切換規則 `.hero-banner--mobile{display:none}`／`.hero-banner--desktop{display:none}`（優先度 (0,1,0)），導致不管視窗寬度、也不管有沒有進 media query，基底規則永遠贏，兩張圖只要都上傳了就都會是 `display:block`。修法是把切換規則也加上 `img` 元素限定（`.hero-banner img.hero-banner--mobile` 等），優先度拉高到 (0,2,1) 蓋過基底規則。修正後重新在 375px／1200px 兩種視窗寬度用 `getComputedStyle` 逐一確認只有對應變體可見，才視為驗證通過。
+
+**驗證方式：**
+1. `npm run build` 過，新路由編譯正常（`/admin/banner`／`/admin/event-info` 為靜態，`/api/admin/banner`／`/api/admin/event-info*` 為動態，符合預期）。
+2. 因為瀏覽器自動化工具（Browser pane）的 `<input type="file">` 無法用程式設值（`InvalidStateError`，瀏覽器安全限制），改用 Node `fetch()` + `FormData`/`Blob`（帶已登入 session cookie）直接測 API：錯誤尺寸（800×600 傳到需要 2560×1440 的桌機插槽）正確回 400 並列出精確尺寸；正確尺寸的桌機／手機各自上傳成功，且互不覆蓋（upsert 只更新對應欄位）；重新上傳同一插槽後，舊檔案確認已從磁碟刪除、新檔案確認存在。
+3. 瀏覽器裡實際打開落地頁，桌機視窗（1200px）跟手機視窗（375px）都用 `getComputedStyle` 逐一確認只有對應的圖片變體 `display:block`、另一個是 `none`（即上述 CSS bug 的驗證，修正前後對照）。
+4. 瀏覽器裡登入後台，實際點開 `/admin/event-info` 的「編輯」按鈕，把 DATE 卡片的主要內容暫時改成一個測試字串，儲存後confirm 落地頁立即反映該測試字串，再改回原本的 `2026.09.15`；過程中確認其他 3 張卡片未受影響。
+5. 用 Node `fetch()` 確認未登入狀態下呼叫新增的兩組 admin API（GET/POST banner、GET event-info、PATCH event-info/[field]）與 `/admin/banner` 頁面皆被既有全域 `middleware.ts` 攔截、307 導回 `/admin/login`——沒有另外寫路由層級的驗證程式碼，因為 `middleware.ts` 的 matcher 本來就涵蓋 `/admin/:path*`／`/api/admin/:path*`，新路由自動繼承這層保護。
+6. 程式碼檢查確認新增的兩組路由與兩個後台頁面都沒有任何 `role === "CTO"` 判斷——PR／CTO 角色權限完全對等，跟其他內容管理畫面一致。
+
+**同步更新：** `openspec/changes/add-banner-event-info-cms/tasks.md` 全部項目勾選並補上驗證備註，`openspec validate --strict` 過後歸檔為 `2026-08-06-add-banner-event-info-cms`。`DEPLOYMENT.md` 備份章節補上一句：`public/uploads/` 跟 `dev.db` 一樣是需要納入備份範圍的本機檔案。README 多處更新：頂部規格文件連結段落（拿掉「只寫規格未實作」的措辭，併入已歸檔清單）、專案說明（後台頁面清單補上 banner／event-info）、v3 更新對照表（狀態改為已實作並驗證）、專案結構（新增檔案、`public/uploads/` 目錄、新 spec 資料夾）、測試步驟（補 `seed:event-info` 指令與對應的漏跑後果說明）、內容管理章節（新增 Banner／活動資訊小節，圖片上傳章節的措辭更新為「本專案第一個真正的上傳功能已完成」）、後續規劃（Phase B 拿掉已完成的項目）、專案進度追蹤表（改為 `done`，記錄過程中修正的 CSS bug）。
+
+**測試資料清理：** API 測試過程中在 `public/uploads/banner/` 產生的測試圖檔、資料庫裡對應的 `Banner` singleton row、專案根目錄的 `.test-cookie` 暫存檔，皆於驗證完成後清除，維持這個開發資料庫在「功能已驗證、無殘留測試資料」的乾淨狀態（比照這次 session 每個 phase 結尾的既有慣例）。

@@ -32,6 +32,10 @@ next-env.d.ts
 # exports (contain PII, never commit)
 /exports/
 
+# user-uploaded content (banner images etc.) - not source, lives on the
+# deployment host's persistent disk, not in git
+/public/uploads/
+
 # internal-only source docs, marked confidential — repo is public, do not publish
 # (wildcard so every dated CTO handoff revision is caught automatically)
 Agatha_Seminar*CTO交接文件*.docx

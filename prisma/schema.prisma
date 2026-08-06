@@ -194,3 +194,33 @@ model FormOption {
   @@unique([field, value])
   @@index([field, sortOrder])
 }
+
+// Banner upload + Event Info CMS (CTO handoff doc v3 §6.2, this project's
+// first real file upload - see openspec/changes/add-banner-event-info-cms).
+// Both are FIXED-SLOT content, not orderable lists like every other CMS
+// model above: there is always exactly one active banner and exactly 4
+// event-info facts - see design.md for why that's a deliberate departure
+// from the CRUD-list pattern.
+model Banner {
+  id         String   @id @default("singleton")
+  desktopUrl String?
+  mobileUrl  String?
+  altText    String   @default("")
+  updatedAt  DateTime @updatedAt
+}
+
+enum EventInfoField {
+  DATE
+  TIME
+  VENUE
+  ACCESS
+}
+
+model EventInfo {
+  id        String         @id @default(uuid())
+  field     EventInfoField @unique
+  line1     String
+  line2     String?
+  subText   String?
+  updatedAt DateTime       @updatedAt
+}
