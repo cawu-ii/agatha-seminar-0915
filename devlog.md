@@ -524,3 +524,21 @@
 **同步更新：** `openspec/changes/add-banner-event-info-cms/tasks.md` 全部項目勾選並補上驗證備註，`openspec validate --strict` 過後歸檔為 `2026-08-06-add-banner-event-info-cms`。`DEPLOYMENT.md` 備份章節補上一句：`public/uploads/` 跟 `dev.db` 一樣是需要納入備份範圍的本機檔案。README 多處更新：頂部規格文件連結段落（拿掉「只寫規格未實作」的措辭，併入已歸檔清單）、專案說明（後台頁面清單補上 banner／event-info）、v3 更新對照表（狀態改為已實作並驗證）、專案結構（新增檔案、`public/uploads/` 目錄、新 spec 資料夾）、測試步驟（補 `seed:event-info` 指令與對應的漏跑後果說明）、內容管理章節（新增 Banner／活動資訊小節，圖片上傳章節的措辭更新為「本專案第一個真正的上傳功能已完成」）、後續規劃（Phase B 拿掉已完成的項目）、專案進度追蹤表（改為 `done`，記錄過程中修正的 CSS bug）。
 
 **測試資料清理：** API 測試過程中在 `public/uploads/banner/` 產生的測試圖檔、資料庫裡對應的 `Banner` singleton row、專案根目錄的 `.test-cookie` 暫存檔，皆於驗證完成後清除，維持這個開發資料庫在「功能已驗證、無殘留測試資料」的乾淨狀態（比照這次 session 每個 phase 結尾的既有慣例）。
+
+## Phase 32 — GTM／GA4 埋設暫緩：Phase 30 狀態回溯修正（2026-08-06）
+
+**做了什麼：** Phase 30 才在同一天上午記錄「GTM／GA4 真實憑證已到位（`GTM-M583KSV7`／`G-C2D5DC3DLS`），待部署時填入 `.env`」，但同日稍晚公關方在群組訊息裡通知情況有變：
+
+> Lindy：「主要是GTM（容器）& GA4的埋設可以先等等，因為埋設碼要換 但是感謝頁 與 自動寄送郵件這個可以繼續沒問題」
+>
+> 公關方：「剛剛跟公關公司討論、GTM改由我們這裡設定再開放他們權限操作 我更新好上面那份給你，再麻煩你們今天協助埋設，在那之前先不用動作～感謝!!」
+
+也就是說，Phase 30 記錄的 `GTM-M583KSV7` 容器代碼即將更換（改由公關方自行設定 GTM 容器後，再開放鼎東操作權限），**在拿到新代碼前，工程端不採取任何埋設動作**；感謝頁與確認信寄送邏輯不受影響，可繼續照常運作。同時主管另外指示一項：確認信寄件人須使用 `service@emergence.today`——查核後**這項本來就已經符合**（`lib/integrations/email.ts` 的 `EMAIL_FROM` 預設值、以及本機 `.env` 現有設定，皆已是這個位址），不需要任何程式碼異動。
+
+- **確認程式碼層級沒有需要回滾的東西**：先查了本機 `.env`，`NEXT_PUBLIC_GTM_ID`／`NEXT_PUBLIC_GA4_ID` 從頭到尾都是空字串——Phase 30 只是把「已取得的真實值」記錄進 README 文件，從未真的寫進任何會進版控或會被部署的設定檔。全域搜尋 `GTM-M583KSV7`／`G-C2D5DC3DLS` 也確認這兩組代碼只出現在 README／devlog／已歸檔的 proposal 文字說明裡，程式碼（`components/GtmLoader.tsx` 等）從一開始就是純設定驅動、沒有寫死任何 ID。**這代表這次不需要 `git revert` 任何 commit，也沒有任何機密／設定值需要清除**——純粹是文件裡「狀態已確認」的措辭需要往回修正成「暫緩、待新代碼」，不要讓看 README 的人誤以為現在就可以直接拿 `GTM-M583KSV7` 去部署。
+- **不回頭改寫 Phase 30 那則歷史紀錄本身**：Phase 30 忠實記錄了「當天上午發生的事」（憑證確實一度到位、程式碼比對確實一致），這件事本身沒有錯，只是幾小時後情況又變了——比照這個專案一貫「devlog 是歷史紀錄，不因後續變化回頭改寫」的做法，新增這則 Phase 32 記錄「後來發生了什麼」，而不是回去改 Phase 30 的文字。
+- **README 同步修正**：把先前寫成「done／真實值已提供」語氣的幾處（與原型 HTML 差異表、v3 更新對照表、角色與分工表、`.env` 環境變數說明表、§12 測試表對照、待確認事項第 5 項、專案進度追蹤表）都加註 2026/08/06 稍晚更新的暫緩狀態，專案進度追蹤表的狀態欄從 `done` 改回 `open` 並註明原因；待確認事項新增第 6 項記錄「確認信寄件人」這項指示已核對符合、無需異動。
+
+**驗證方式：** 全域搜尋確認 `GTM-M583KSV7`／`G-C2D5DC3DLS` 未出現在任何 `.ts`／`.tsx` 程式碼檔案裡（只存在於 README／devlog／已歸檔的 OpenSpec 文件說明文字）；檢查本機 `.env` 確認 `NEXT_PUBLIC_GTM_ID`／`NEXT_PUBLIC_GA4_ID` 皆為空值；檢查 `lib/integrations/email.ts` 與 `.env` 的 `EMAIL_FROM`，確認皆已是 `service@emergence.today`，符合主管指示，不需修改。
+
+**同步更新：** 本則 Phase 32 devlog 記錄；README 多處狀態欄與待確認事項同步修正（見上）。這次沒有觸及 OpenSpec 規格（`tracking-integration` capability 描述的是「事件由誰負責推送／設定 Trigger」這個機制本身，機制沒有變，只是實際容器 ID 換代碼，屬於部署設定層級的暫緩，不構成 spec delta）。
