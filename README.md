@@ -82,7 +82,7 @@ Next.js（App Router + TypeScript）全端專案：
 | GA4 已開通（`G-L8NZJXKM3J`） | 仍缺 GTM 容器 ID（`NEXT_PUBLIC_GTM_ID`），此項本身不影響程式碼 | 僅供知悉；2026/08/06 文件更新後 GA4 ID 一度換成 `G-C2D5DC3DLS`、GTM 容器一度提供 `GTM-M583KSV7`，但同日稍晚公關方通知容器代碼即將更換，**埋設暫緩，待新代碼**，見下方「追蹤事件字典」與「待確認事項」 |
 | UTM 新增「合作夥伴」來源、不分波段 | `utm_source`/`utm_content` 本為自由字串，非固定選項 | ✅ 已相容，無需改動 |
 | CMS 範圍擴及 Banner 上傳、活動資訊 | v3 §6.2；桌機／手機 Banner 圖片上傳（精確尺寸校驗）＋活動資訊四張卡片後台編輯 | ✅ **已實作並驗證**（[`add-banner-event-info-cms`](openspec/changes/archive/2026-08-06-add-banner-event-info-cms/)，見下方「內容管理」） |
-| **GTM／GA4 憑證到位，GA4 主轉換事件改為 GTM 端設定** | 0805/0806 文件更新：GTM 容器＋GA4 ID 已提供，且改由鼎東維護 Tag／Trigger；`generate_lead` 取代原規劃的 `registration_submit` 自訂事件 | ✅ **已實作並驗證**（[`update-tracking-integration`](openspec/changes/archive/2026-08-06-update-tracking-integration/)，見下方「追蹤事件字典」） |
+| **GTM／GA4 憑證到位，GA4 主轉換事件改為 GTM 端設定** | 0805/0806 文件更新：GTM 容器＋GA4 ID 已提供，內部 Tag／Trigger 改由鼎東維護；`generate_lead` 取代原規劃的 `registration_submit` 自訂事件（⚠️ 同日稍晚 GTM 容器本身之建置改由「公關」負責，工程端等候新代碼，見下方「待確認事項」） | ✅ **已實作並驗證**（[`update-tracking-integration`](openspec/changes/archive/2026-08-06-update-tracking-integration/)，見下方「追蹤事件字典」） |
 
 **目前狀態：議程管理、個別帳號、Excel 匯出、講者／夥伴／亮點 CMS、表單選項清單 CMS、Banner 上傳／活動資訊 CMS 七項已完成並歸檔；新子網域部署尚未動工**，避免一次把不相關的能力全部混進同一個 change。
 
@@ -92,9 +92,10 @@ Next.js（App Router + TypeScript）全端專案：
 
 | 角色 | 負責事項 | 於本專案之對應 |
 |---|---|---|
-| 🔵 **CTO／工程**（本次交付範圍） | 報名頁與自建後台、CMS、交易信 API 串接、感謝頁、UTM 落庫、後台權限開放予公關；掛上鼎東提供的 GTM 容器（設定驅動，見下） | 涵蓋幾乎所有程式碼：落地頁、`/api/register`、`/admin`、資料庫、CTO 專用匯出 |
+| 🔵 **CTO／工程**（本次交付範圍） | 報名頁與自建後台、CMS、交易信 API 串接、感謝頁、UTM 落庫、後台權限開放予公關；掛上公關提供的 GTM 容器（設定驅動，見下） | 涵蓋幾乎所有程式碼：落地頁、`/api/register`、`/admin`、資料庫、CTO 專用匯出 |
 | 🟠 **Lindy（行銷）** | GA4 已開通取得追蹤碼、分發 UTM 連結、對外文案 | 提供 `NEXT_PUBLIC_GA4_ID`（僅供備忘，程式碼不直接讀取，實際由鼎東於 GTM 設定）；透過 `/admin` 或 CTO 匯出名單彙整週報 |
-| 🩷 **公關（鼎東）**——**2026/08/06 交接文件更新，角色範圍擴大** | 提供並維護 GTM 容器、建立 GA4 Tag／Meta Pixel／Meta Pixel Tag、設定 Trigger、GTM Preview 測試——這些原本預期由 CTO 建置的追蹤層設定，這次改由鼎東的技術團隊直接操作 | 提供 `NEXT_PUBLIC_GTM_ID`；⚠️ 2026/08/06 稍晚公關方通知先前提供的 `GTM-M583KSV7` 即將更換（容器改由公關方設定後再開放鼎東操作權限），埋設暫緩待新代碼；日常操作 `/admin`（PR 角色個別帳號登入，由 CTO 建立） |
+| 🟢 **公關**——**2026/08/06 稍晚更新**：GTM 容器改由公關方自行設定 | **GTM 容器建置與維護**，設定完成後再開放鼎東操作權限；工程端在拿到新代碼前不埋設，目前**等候通知** | 提供 `NEXT_PUBLIC_GTM_ID`（原 `GTM-M583KSV7` 即將更換，待新代碼）；日常操作 `/admin`（PR 角色個別帳號登入，由 CTO 建立） |
+| 🩷 **鼎東（公關公司技術團隊）**——**2026/08/06 交接文件更新，角色範圍擴大** | 建立 GA4 Tag／Meta Pixel／Meta Pixel Tag、設定 Trigger、GTM Preview 測試——這些原本預期由 CTO 建置的追蹤層設定，這次改由鼎東直接操作；GTM 容器本身之建置改由「公關」負責（見上） | 於公關方開放之 GTM 容器內建立 Tag／Trigger；GA4 ID `G-C2D5DC3DLS` 是否隨容器代碼一併更換待確認 |
 | 🟣 **公司（BD／財務）** | 申辦交易信服務帳號（公司持有）、Ragic 串接 | 提供 `RESEND_API_KEY`／`RAGIC_API_TOKEN` |
 
 ---
@@ -105,7 +106,7 @@ Next.js（App Router + TypeScript）全端專案：
 flowchart TD
   U["使用者<br/>（點擊帶 UTM 之連結）"]:::ext
   U --> LP["🔵 CTO · app/seminar/0915<br/>落地頁：UTM 擷取、同意橫幅、表單"]
-  LP -->|"同意後始注入"| GTM["🩷 鼎東 · GTM 容器<br/>GA4 Tag／Meta Pixel Tag／Trigger 皆由鼎東設定"]:::pr
+  LP -->|"同意後始注入"| GTM["GTM 容器（🟢 公關建置，⚠️ 暫緩待新代碼）<br/>GA4 Tag／Meta Pixel Tag／Trigger 由 🩷 鼎東設定"]:::pr
   LP -->|"POST 表單 + UTM + idempotencyKey"| API["🔵 CTO · /api/register<br/>驗證 → insert → 回傳 event_id"]
   API --> DB[("🔵 CTO · 資料庫<br/>SQLite（部署主機硬碟上的檔案）")]
   API -->|"after() 背景工作，不阻塞回應"| MAIL["🟣 公司 · 交易信 Provider<br/>Resend／無憑證則 log-only"]:::company
@@ -122,7 +123,7 @@ flowchart TD
   classDef company fill:#EEEDFE,stroke:#AFA9EC,color:#3C3489;
 ```
 
-未特別上色之節點（落地頁／API／資料庫／後台／匯出）皆屬 🔵 CTO 本次交付範圍內之程式碼；上色節點為外部整合點，顏色代表憑證／設定負責提供之對象。**2026/08/06 交接文件更新**：GTM 容器改由鼎東提供並自行維護 Tag／Trigger 設定（不再是 Lindy 憑證交給 CTO 埋設），GA4 的關鍵轉換事件（`generate_lead`）與 Meta Lead 事件也改為鼎東在 GTM／GA4 後台依感謝頁網址設定 Trigger，本專案程式碼不再推送任何轉換用的自訂事件，詳見「事件字典」一節。**尚未取得憑證之整合點（Meta CAPI／交易信／Ragic）目前均為安全的 no-op 狀態，不會導致報名流程失敗**，詳見前節「與原型 HTML 差異」。
+未特別上色之節點（落地頁／API／資料庫／後台／匯出）皆屬 🔵 CTO 本次交付範圍內之程式碼；上色節點為外部整合點，顏色代表憑證／設定負責提供之對象。**2026/08/06 交接文件更新**：GTM 容器內部的 GA4 Tag／Meta Pixel Tag／Trigger 設定改由鼎東維護（不再是 Lindy 憑證交給 CTO 埋設），GA4 的關鍵轉換事件（`generate_lead`）與 Meta Lead 事件也改為鼎東在 GTM／GA4 後台依感謝頁網址設定 Trigger，本專案程式碼不再推送任何轉換用的自訂事件，詳見「事件字典」一節。**2026/08/06 稍晚再更新**：GTM 容器本身之建置改由「公關」負責設定，設定完成後才開放鼎東操作權限，工程端在拿到新代碼前**等候通知、不埋設**。**尚未取得憑證之整合點（Meta CAPI／交易信／Ragic）目前均為安全的 no-op 狀態，不會導致報名流程失敗**，詳見前節「與原型 HTML 差異」。
 
 ---
 
@@ -247,7 +248,7 @@ npm run dev              # http://localhost:3000
 | `SESSION_SECRET` | 後台登入 cookie 簽章密鑰 | 🔵 CTO（隨機字串即可） | 未設定將直接報錯，刻意避免以弱密鑰悄悄運作 |
 | `EXPORT_TOKEN` | CTO 專用匯出端點（CLI／`/api/export`）之權杖，**刻意與後台登入分開**，PR 角色帳號即使登入 `/admin` 也拿不到這個權杖 | 🔵 CTO 自行保管，不轉交公關 | 未設定則無法使用 `/api/export` |
 | `INITIAL_CTO_EMAIL` / `INITIAL_CTO_PASSWORD` | 僅供 `npm run seed:admin` 使用一次，建立資料庫裡第一個 `CTO` 角色帳號 | 🔵 CTO | 未設定：`seed:admin` 直接報錯並中止，不會建立帳號 |
-| `NEXT_PUBLIC_GTM_ID` | GTM 容器 ID | 🩷 鼎東（2026/08/06 文件更新：容器＋內部 Tag／Trigger 皆由鼎東維護，非 CTO 建置） | 未設定：網站將完全不注入 GTM 腳本，不影響運作；⚠️ **2026/08/06 稍晚更新：公關方通知先前提供的 `GTM-M583KSV7` 容器代碼即將更換，暫緩埋設，待對方提供新代碼後再填入**（本機 `.env` 目前留空，未寫入任何容器 ID，不受影響） |
+| `NEXT_PUBLIC_GTM_ID` | GTM 容器 ID | 🟢 公關（容器本身；內部 Tag／Trigger 則由 🩷 鼎東維護，2026/08/06 文件更新，非 CTO 建置） | 未設定：網站將完全不注入 GTM 腳本，不影響運作；⚠️ **2026/08/06 稍晚更新：公關方通知先前提供的 `GTM-M583KSV7` 容器代碼即將更換，暫緩埋設，待對方提供新代碼後再填入**（本機 `.env` 目前留空，未寫入任何容器 ID，不受影響） |
 | `NEXT_PUBLIC_GA4_ID` | 備忘用途（GA4 於 GTM 容器內設定，本站不直接讀取） | 🟠 Lindy（GA4 已開通） | 不影響程式運作；⚠️ 同上，`G-C2D5DC3DLS` 是否隨容器代碼一併更換待確認 |
 | `META_CAPI_TOKEN` / `META_PIXEL_ID` | Meta Conversions API 伺服器端事件 | 🩷 公關公司（文件 §5） | 未設定：`sendMetaCAPI` 為 no-op + log，不影響報名流程 |
 | `EMAIL_PROVIDER` / `RESEND_API_KEY` / `EMAIL_FROM` | 報名確認信 | 🟣 公司申辦交易信帳號（文件 §6.5） | `EMAIL_PROVIDER=none` 時為 log-only，不寄信亦不報錯 |
