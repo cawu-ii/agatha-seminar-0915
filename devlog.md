@@ -542,3 +542,19 @@
 **驗證方式：** 全域搜尋確認 `GTM-M583KSV7`／`G-C2D5DC3DLS` 未出現在任何 `.ts`／`.tsx` 程式碼檔案裡（只存在於 README／devlog／已歸檔的 OpenSpec 文件說明文字）；檢查本機 `.env` 確認 `NEXT_PUBLIC_GTM_ID`／`NEXT_PUBLIC_GA4_ID` 皆為空值；檢查 `lib/integrations/email.ts` 與 `.env` 的 `EMAIL_FROM`，確認皆已是 `service@emergence.today`，符合主管指示，不需修改。
 
 **同步更新：** 本則 Phase 32 devlog 記錄；README 多處狀態欄與待確認事項同步修正（見上）。這次沒有觸及 OpenSpec 規格（`tracking-integration` capability 描述的是「事件由誰負責推送／設定 Trigger」這個機制本身，機制沒有變，只是實際容器 ID 換代碼，屬於部署設定層級的暫緩，不構成 spec delta）。
+
+## Phase 33 — 0806 下午版交接文件：GTM 容器代碼定案＋確認信文案更新＋權限釐清（2026-08-06）
+
+**做了什麼：** 收到當天下午再度更新的交接文件（`Agatha_Seminar_報名系統與追蹤_CTO交接文件_0806.docx`），跟 Phase 32 記錄的「稍晚訊息、尚未拿到新代碼」正好銜接——這份文件就是那則訊息說的「稍晚會提供的新代碼」。同一天內文件已經是第三個版本（0804 → 0805 → 0806），沿用同一套 `unzip` + 抓 `<w:t>` 節點的純文字比對做法，逐字對照 0805／0806 兩版差異，避免漏看細節。
+
+- **GTM 容器代碼再次更換，且歸屬方向整個反過來**：0805 版是「`GTM-M583KSV7`，公關公司提供，開放給 `marketing@emergence.today`」；0806 版變成「**`GTM-M6P5QTRM`，湧現內部（Lindy）自己開的**，開放 Editor 權限給鼎東」——不是公關給我方，是我方（Lindy）自己建、給外部技術團隊操作權限。明確角色分工：**Lindy（Admin）／鼎東（Editor）／CTO（安裝 Container Code）**。
+- **埋設範圍從「全站」收斂成「Landing Page」**：0805 版寫「全站埋設 GTM 容器」，0806 版明確改成「Landing Page 埋設 GTM 容器」——範圍narrower，只需要在 `/seminar/0915` 系列頁面注入即可，不需要涵蓋 `/admin` 等其他路徑（現有 `GtmLoader` 掛在根 `layout.tsx`，之後若要嚴格對齊這條，可以評估是否要收斂到只在 seminar route group 注入；這次先只更新文件狀態，程式碼掛載位置暫不動，因為擴大範圍不會造成錯誤，只是比文件要求寬鬆）。
+- **責任分工依「通路」拆得更細**：鼎東的範圍限定在 **Meta ＋ Digitimes** 兩個投放通路（Meta Pixel／Meta Pixel Tag／Meta Lead Event Trigger、對應的 GTM Preview 測試）；GTM Container 維護、GA4 Tag 建立、以及**湧現自營通路**（Benchmark 電子報、Agatha 自己的 FB／LinkedIn）的 GTM Preview 測試，則是 Lindy／湧現自己的工作。
+- **確認信與感謝頁文案補上公司品牌名稱**：交接文件 §8.1／§8.2 官方文案更新，信件主旨加上「湧現智庫Agatha」（`【報名成功】湧現智庫Agatha・9/15 製造業 AI 商用實戰論壇`），感謝頁內文加上「湧現智庫Agatha · 」前綴。逐字比對後這是唯二真的動到程式碼的地方：`lib/integrations/email.ts` 的 `buildEmail()` 主旨字串、`app/seminar/0915/thanks/page.tsx` 的一行文案。
+- **釐清一個看起來像衝突、實際上不衝突的 checklist 項目**：文件第 9 章上線前 checklist 有一條「不提供公關公司 CMS 權限」（0805、0806 皆同，不是這次新增），字面上似乎跟這個專案「PR 角色帳號可完整操作 CMS」的既有設計互相矛盾。直接把這個疑慮攤開來問你，你的回覆是：**「公關公司」（鼎東，外部代理商）跟「公司公關」（Lindy，湧現內部）是兩個不同對象**，checklist 講的是前者——鼎東本來就不該有、也沒有拿到本專案任何帳號；PR 角色帳號從一開始就只發給 Lindy。兩者對得起來，不需要改任何權限程式碼，純粹是命名容易混淆造成的誤會。
+- **順手確認幾件事，維持現狀不動**：報名頁／感謝頁網址（`https://2026-forum.agatha-ai.com/seminar/0915`、`/seminar/0915/thanks`）與現有路由結構完全一致；GA4 conversion 機制（GTM Trigger 比對感謝頁網址、標記為 Key Event）與現有架構一致；後端「不需要另外推送 GA4 事件、只在啟用時補送 Meta CAPI」的分工，跟現有 `lib/integrations/meta-capi.ts` 的設計一致；「不串接 Ragic、不串接 Benchmark」這句在 0805 就已經寫著（不是這次新增），現有 `lib/integrations/ragic.ts` 的 no-op stub 維持原樣即可，不用真的動手串接。
+- **Slack 截圖裡主管的提問，順帶解讀給你**：他問「感謝頁是不是一個獨立的 context path」，其實是要拿去給 Lindy 設定 GTM Trigger 用的——GTM 判斷「有沒有轉換」只看網址路徑（`/seminar/0915/thanks`），不會、也不需要知道「是誰」報名，「誰報名了什麼」的資料仍然只在我方資料庫／Excel 匯出裡，兩件事是分開的，已經在對話裡先幫你把這個界線講清楚，避免之後有人誤以為網址本身能拿來對到個人身份。
+
+**驗證方式：** 兩處文案修改後 `npm run build` 通過；瀏覽器開 `/seminar/0915/thanks` 用 `get_page_text` 確認畫面文字正確顯示「感謝您報名「湧現智庫Agatha · 製造業 AI 商用實戰論壇」」。信件主旨的改動因為是純字串樣板、沒有條件邏輯分支，直接讀程式碼比對正確性，未另外觸發實際寄信驗證（延續本專案一貫「無憑證時 log-only、有邏輯分支才需要跑一次驗證」的判斷）。
+
+**同步更新：** 本則 Phase 33 devlog；README 多處更新（與原型 HTML 差異表、v3 更新對照表引言與資料表、角色與分工表整個重寫——拆解「公司公關」vs「公關公司」的區別並新增一段說明、系統資料流圖 GTM 節點標籤、`.env` 環境變數說明表、待確認事項第 5 項改為「已定案」並新增第 7 項記錄權限釐清結果、專案進度追蹤表新增／更新三列）。這次沒有開新的 OpenSpec change——GTM 容器代碼與確認信品牌前綴都是**內容／憑證層級**的更新，沒有改變任何 capability spec 描述的機制或行為（跟 Phase 30 修正「Agentic」錯字、GTM ID 一度到位時的處理方式一致），純文件與文案層級異動不構成 spec delta。原始 `Agatha_Seminar_報名系統與追蹤_CTO交接文件_0806.docx` 已複製進專案根目錄，受 `.gitignore` 保護不進版控。

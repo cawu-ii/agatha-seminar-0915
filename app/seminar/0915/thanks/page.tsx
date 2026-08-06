@@ -12,7 +12,7 @@ export default function ThanksPage() {
         <div className="glass thanks__box">
           <div className="regdone__tick">✓</div>
           <h3>報名申請已送出</h3>
-          <p>感謝您報名「製造業 AI 商用實戰論壇」。我們已收到您的申請，確認信已寄至您填寫的信箱。</p>
+          <p>感謝您報名「湧現智庫Agatha · 製造業 AI 商用實戰論壇」。我們已收到您的申請，確認信已寄至您填寫的信箱。</p>
           <p className="regdone__meta">2026.09.15（二）13:30–16:30｜台北・華南銀行國際會議中心</p>
           <p>本論壇採資格審核制，審核結果將另行以 Email 通知。</p>
           <p>

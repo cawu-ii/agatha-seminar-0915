@@ -7,7 +7,7 @@ const EVENT_WHERE = "台北・華南銀行國際會議中心";
 
 /** CTO handoff doc §8.1 approved confirmation-email copy. */
 function buildEmail(reg: Registration) {
-  const subject = `【報名成功】${EVENT_NAME}・9/15`;
+  const subject = `【報名成功】湧現智庫Agatha・9/15 ${EVENT_NAME}`;
   const text = `${reg.name} 您好，
 
 我們已收到您的報名申請，感謝報名 ${EVENT_WHEN} 於${EVENT_WHERE}舉辦的「${EVENT_NAME}」。
