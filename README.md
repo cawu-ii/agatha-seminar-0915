@@ -18,9 +18,10 @@
 
 - [專案說明](#專案說明)
 - [與原型 HTML 差異](#與原型-html-差異)
-- [交接文件 v3（0804）更新對照](#交接文件-v30804更新對照)
+- [交接文件 v3（0804／0805-0806）更新對照](#交接文件-v308040805-0806更新對照)
 - [角色與分工](#角色與分工)
 - [系統資料流](#系統資料流)
+- [追蹤事件字典](#追蹤事件字典對照文件-66-20260806-更新)
 - [專案結構](#專案結構)
 - [測試步驟](#測試步驟)
 - [`.env` 環境變數說明](#env-環境變數說明責任分工對照文件-011)
@@ -38,7 +39,7 @@
 Next.js（App Router + TypeScript）全端專案：
 
 - `/seminar/0915` — 報名落地頁（沿用已核准之靜態設計 `agatha-seminar-landing-0803.html` 的文案與樣式，改以 Next.js 頁面實作，並補上實際送出邏輯）
-- `/seminar/0915/thanks` — 感謝頁（文件 §8.2 官方文案，含加入行事曆、觸發 `registration_submit`）
+- `/seminar/0915/thanks` — 感謝頁（文件 §8.2 官方文案，含加入行事曆；GA4／Meta 的報名轉換判定改由外部 GTM 依此頁網址設定 Trigger，程式碼不再推送轉換事件，見下方「追蹤事件」說明）
 - `/admin` — CTO／公關共用之報名後台，採個別帳號＋角色（`CTO`／`PR`）登入，非共用密碼
 - `/admin/accounts` — 帳號管理（CTO 專屬，新增／停用帳號、重設密碼）
 - `/admin/agenda`、`/admin/speakers`、`/admin/partners`、`/admin/highlights`、`/admin/form-options` — 內容管理（議程／講者／合作夥伴／活動亮點／報名表單選項清單），CTO／公關皆可操作，儲存後落地頁下次載入即反映
@@ -56,7 +57,7 @@ Next.js（App Router + TypeScript）全端專案：
 | 送出表單後 | 純前端 JS 驗證欄位，通過後將表單隱藏並切換為「已送出」畫面——**資料未經任何儲存**，重新整理即消失 | 實際呼叫 `/api/register`，寫入資料庫並永久保存 |
 | UTM（`utm_source=...`） | 未處理，連結尾端參數被忽略 | 網址上的 UTM 參數會被擷取，並隨該筆報名一併存入資料庫 |
 | 感謝頁 | 無獨立網址，僅為同頁切換至另一個 `<div>` | 具備獨立網址 `/seminar/0915/thanks`，新增「加入 Google 日曆」「下載 .ics」兩項功能（原型未提供） |
-| 追蹤（GTM／GA4／Meta） | 完全未埋設，原始碼中無任何 GTM 相關程式碼 | 已完成 GTM 容器、同意橫幅、三項事件（`lp_view`／`cta_click`／`registration_submit`）之程式邏輯；**因尚未取得正式 GTM ID，目前不會載入任何追蹤腳本**——整合管線已就緒，僅待憑證啟用 |
+| 追蹤（GTM／GA4／Meta） | 完全未埋設，原始碼中無任何 GTM 相關程式碼 | 已完成 GTM 容器、同意橫幅、兩項前端事件（`lp_view`／`cta_click`）之程式邏輯；GA4 Key Event（`generate_lead`）與 Meta Lead 改由鼎東於 GTM／GA4 後台依感謝頁網址設定 Trigger，不再由前端程式碼推送（2026/08/06 交接文件更新，見下方「事件字典」）；**GTM／GA4 真實 ID 已提供**（`GTM-M583KSV7`／`G-C2D5DC3DLS`），待部署時填入 `.env` |
 | 確認信 | 無此功能 | 已具備寄信邏輯，未設定交易信帳號時僅於伺服器 log 記錄應發送對象，不會實際寄出 |
 | Meta CAPI | 無 | 同上，邏輯已完成，未設定憑證時為 no-op |
 | 後台（`/admin`） | 不存在 | 新建功能，CTO／公關以個別帳號登入查看名單、篩選、標記處理狀態、重寄確認信 |
@@ -66,9 +67,9 @@ Next.js（App Router + TypeScript）全端專案：
 
 ---
 
-## 交接文件 v3（0804）更新對照
+## 交接文件 v3（0804／0805-0806）更新對照
 
-行銷／公關組提出新需求，交接文件更新至 v3（0804）。完整逐項比對見 [`openspec/changes/archive/2026-08-05-add-agenda-management/proposal.md`](openspec/changes/archive/2026-08-05-add-agenda-management/proposal.md)，重點摘要：
+行銷／公關組提出新需求，交接文件更新至 v3（0804），後續於 2026/08/06 再由 Lindy 轉發 0805 修訂版（追蹤層／GTM／GA4 相關）。完整逐項比對見 [`openspec/changes/archive/2026-08-05-add-agenda-management/proposal.md`](openspec/changes/archive/2026-08-05-add-agenda-management/proposal.md)（0804 版）與 [`openspec/changes/archive/2026-08-06-update-tracking-integration/proposal.md`](openspec/changes/archive/2026-08-06-update-tracking-integration/proposal.md)（0805 版），重點摘要：
 
 | 項目 | 摘要 | 狀態 |
 |---|---|---|
@@ -78,9 +79,10 @@ Next.js（App Router + TypeScript）全端專案：
 | **CMS 範圍擴及講者／合作夥伴／活動亮點** | 議程僅為第一階段，v3 §6.2 要求擴及更多區塊 | ✅ **已實作並驗證**（`/admin/speakers`、`/admin/partners`、`/admin/highlights`，見下方「內容管理」） |
 | **報名表單選項清單可後台編輯** | v3 §6.2「表單欄」需求，範圍已與你確認限定為「選項清單」，非完整表單建構器 | ✅ **已實作並驗證**（`/admin/form-options`，見下方「內容管理」；欄位種類／順序／單複選型態仍為固定，只有選項內容可編輯） |
 | 新子網域 `2026-forum.agatha-ai.com` | 純部署/DNS 層級，路由本身相對路徑，程式碼不受影響 | 不需工程動作 |
-| GA4 已開通（`G-L8NZJXKM3J`） | 仍缺 GTM 容器 ID（`NEXT_PUBLIC_GTM_ID`），此項本身不影響程式碼 | 僅供知悉 |
+| GA4 已開通（`G-L8NZJXKM3J`） | 仍缺 GTM 容器 ID（`NEXT_PUBLIC_GTM_ID`），此項本身不影響程式碼 | 僅供知悉；**2026/08/06 文件更新後 GA4 ID 已換成 `G-C2D5DC3DLS`，且 GTM 容器 `GTM-M583KSV7` 已一併提供，見下方「追蹤事件字典」** |
 | UTM 新增「合作夥伴」來源、不分波段 | `utm_source`/`utm_content` 本為自由字串，非固定選項 | ✅ 已相容，無需改動 |
 | CMS 範圍擴及 Banner 上傳、活動資訊 | 需要檔案上傳基礎設施，尚未建置 | 🔵 **規格已完成**（[`add-banner-event-info-cms`](openspec/changes/add-banner-event-info-cms/)），**尚未實作** |
+| **GTM／GA4 憑證到位，GA4 主轉換事件改為 GTM 端設定** | 0805/0806 文件更新：GTM 容器＋GA4 ID 已提供，且改由鼎東維護 Tag／Trigger；`generate_lead` 取代原規劃的 `registration_submit` 自訂事件 | ✅ **已實作並驗證**（[`update-tracking-integration`](openspec/changes/archive/2026-08-06-update-tracking-integration/)，見下方「追蹤事件字典」） |
 
 **目前狀態：議程管理、個別帳號、Excel 匯出、講者／夥伴／亮點 CMS、表單選項清單 CMS 六項已完成並歸檔；Banner 上傳／活動資訊 CMS 規格已完成但尚未實作（需要先建置檔案上傳基礎建設）；新子網域部署尚未動工**，避免一次把不相關的能力全部混進同一個 change。
 
@@ -90,9 +92,9 @@ Next.js（App Router + TypeScript）全端專案：
 
 | 角色 | 負責事項 | 於本專案之對應 |
 |---|---|---|
-| 🔵 **CTO／工程**（本次交付範圍） | 報名頁與自建後台、GTM 埋設、交易信 API 串接、感謝頁、UTM 落庫、後台權限開放予公關 | 涵蓋幾乎所有程式碼：落地頁、`/api/register`、`/admin`、資料庫、CTO 專用匯出 |
-| 🟠 **Lindy（行銷）** | 申請 GA4 取得追蹤碼、分發 UTM 連結、對外文案 | 提供 `NEXT_PUBLIC_GTM_ID`／`NEXT_PUBLIC_GA4_ID`；透過 `/admin` 或 CTO 匯出名單彙整週報 |
-| 🩷 **公關（鼎東）** | Meta 廣告像素、透過後台執行報名者行前／會後通知 | 提供 `META_CAPI_TOKEN`／`META_PIXEL_ID`；日常操作 `/admin`（PR 角色個別帳號登入，由 CTO 建立） |
+| 🔵 **CTO／工程**（本次交付範圍） | 報名頁與自建後台、CMS、交易信 API 串接、感謝頁、UTM 落庫、後台權限開放予公關；掛上鼎東提供的 GTM 容器（設定驅動，見下） | 涵蓋幾乎所有程式碼：落地頁、`/api/register`、`/admin`、資料庫、CTO 專用匯出 |
+| 🟠 **Lindy（行銷）** | GA4 已開通取得追蹤碼、分發 UTM 連結、對外文案 | 提供 `NEXT_PUBLIC_GA4_ID`（僅供備忘，程式碼不直接讀取，實際由鼎東於 GTM 設定）；透過 `/admin` 或 CTO 匯出名單彙整週報 |
+| 🩷 **公關（鼎東）**——**2026/08/06 交接文件更新，角色範圍擴大** | 提供並維護 GTM 容器、建立 GA4 Tag／Meta Pixel／Meta Pixel Tag、設定 Trigger、GTM Preview 測試——這些原本預期由 CTO 建置的追蹤層設定，這次改由鼎東的技術團隊直接操作 | 提供 `NEXT_PUBLIC_GTM_ID`（`GTM-M583KSV7`，已開通）；日常操作 `/admin`（PR 角色個別帳號登入，由 CTO 建立） |
 | 🟣 **公司（BD／財務）** | 申辦交易信服務帳號（公司持有）、Ragic 串接 | 提供 `RESEND_API_KEY`／`RAGIC_API_TOKEN` |
 
 ---
@@ -103,25 +105,40 @@ Next.js（App Router + TypeScript）全端專案：
 flowchart TD
   U["使用者<br/>（點擊帶 UTM 之連結）"]:::ext
   U --> LP["🔵 CTO · app/seminar/0915<br/>落地頁：UTM 擷取、同意橫幅、表單"]
-  LP -->|"同意後始注入"| GTM["🟠 Lindy · GTM 容器<br/>內含 GA4"]:::lindy
+  LP -->|"同意後始注入"| GTM["🩷 鼎東 · GTM 容器<br/>GA4 Tag／Meta Pixel Tag／Trigger 皆由鼎東設定"]:::pr
   LP -->|"POST 表單 + UTM + idempotencyKey"| API["🔵 CTO · /api/register<br/>驗證 → insert → 回傳 event_id"]
   API --> DB[("🔵 CTO · 資料庫<br/>SQLite（部署主機硬碟上的檔案）")]
   API -->|"after() 背景工作，不阻塞回應"| MAIL["🟣 公司 · 交易信 Provider<br/>Resend／無憑證則 log-only"]:::company
-  API -->|"after() 背景工作，不阻塞回應"| META["🩷 公關 · Meta CAPI<br/>無憑證則 no-op"]:::pr
-  API -->|"200 + event_id（不含 PII）"| THX["🔵 CTO · /thanks<br/>加入行事曆、觸發 registration_submit"]
-  THX -->|"dataLayer.push"| GTM
+  API -->|"after() 背景工作，不阻塞回應"| META["🩷 公關 · Meta CAPI<br/>無憑證則 no-op；event_id 供 GTM Pixel 比對去重"]:::pr
+  API -->|"200 + event_id（不含 PII）"| THX["🔵 CTO · /thanks<br/>加入行事曆；本身不推送轉換事件"]
+  THX -.-|"GTM 依此頁網址比對觸發<br/>generate_lead／Meta Lead（外部設定）"| GTM
   DB --> ADMIN["🔵 CTO · /admin<br/>查詢／篩選／標記／重寄信"]
   ADMIN -.日常操作（PR 角色帳號）.-> PRUSER["🩷 公關（個別帳號登入）"]:::pr
   DB --> EXPORT["🔵 CTO 角色專用匯出（.xlsx）<br/>CLI／EXPORT_TOKEN 或 /admin 內建按鈕，皆記錄稽核紀錄"]
   EXPORT -.交付名單.-> RAGIC["🟣 公司 · Ragic<br/>Phase B，目前為 no-op"]:::company
 
   classDef ext fill:#F1EFE8,stroke:#B4B2A9,color:#2C2C2A;
-  classDef lindy fill:#FAEEDA,stroke:#EF9F27,color:#633806;
   classDef pr fill:#FDE7F1,stroke:#E8779E,color:#7A1745;
   classDef company fill:#EEEDFE,stroke:#AFA9EC,color:#3C3489;
 ```
 
-未特別上色之節點（落地頁／API／資料庫／後台／匯出）皆屬 🔵 CTO 本次交付範圍內之程式碼；上色節點為外部整合點，顏色代表憑證負責提供之對象。**尚未取得憑證之整合點（GTM／Meta CAPI／交易信／Ragic）目前均為安全的 no-op 狀態，不會導致報名流程失敗**，詳見前節「與原型 HTML 差異」。
+未特別上色之節點（落地頁／API／資料庫／後台／匯出）皆屬 🔵 CTO 本次交付範圍內之程式碼；上色節點為外部整合點，顏色代表憑證／設定負責提供之對象。**2026/08/06 交接文件更新**：GTM 容器改由鼎東提供並自行維護 Tag／Trigger 設定（不再是 Lindy 憑證交給 CTO 埋設），GA4 的關鍵轉換事件（`generate_lead`）與 Meta Lead 事件也改為鼎東在 GTM／GA4 後台依感謝頁網址設定 Trigger，本專案程式碼不再推送任何轉換用的自訂事件，詳見「事件字典」一節。**尚未取得憑證之整合點（Meta CAPI／交易信／Ragic）目前均為安全的 no-op 狀態，不會導致報名流程失敗**，詳見前節「與原型 HTML 差異」。
+
+---
+
+## 追蹤事件字典（對照文件 §6.6，2026/08/06 更新）
+
+| 事件 | 誰觸發 | 用途 |
+|---|---|---|
+| `lp_view` | 本專案程式碼（`LpViewTracker`），同意橫幅接受後推送一次 | 落地頁瀏覽 |
+| `cta_click` | 本專案程式碼（`CtaLink`） | 點擊「立即報名」按鈕，微轉換訊號 |
+| `page_view` | GTM 內建（All Pages Trigger），非本專案程式碼推送 | GA4 基本瀏覽事件 |
+| `generate_lead` | **鼎東**於 GTM／GA4 後台設定（Trigger：`page_view`，Page Location 包含 `/seminar/0915/thanks`） | GA4 Key Event，本次活動報名轉換／UTM 成效分析依據 |
+| Meta `Lead` | **鼎東**於 GTM 後台設定（同樣以感謝頁網址判定，避免用 Submit Button Trigger） | Meta 廣告最佳化與轉換歸因 |
+
+**這次交接文件更新（0804 → 0805/0806）的關鍵變化**：原本規劃由本專案程式碼在報名成功後推送一個自訂的 `registration_submit` 事件作為 GA4 主轉換依據；0805 版文件明確改為「本次不另外建立 `registration_submit` 事件，GA4 以 `generate_lead` 作為正式報名完成事件」，且 `generate_lead`／Meta `Lead` 都改成鼎東在 GTM／GA4 後台直接設定「網址比對」的 Trigger，不需要本專案程式碼推送任何轉換事件。對應的 `ThanksTracker` 元件與 `registration_submit` 事件型別已移除（見 [`openspec/changes/archive/2026-08-06-update-tracking-integration/`](openspec/changes/archive/2026-08-06-update-tracking-integration/)）。
+
+程式碼這邊唯一要保證的是：感謝頁網址維持 `/seminar/0915/thanks` 不變（本就如此），讓鼎東設定的 Trigger 能比對得到；`event_id` 仍會透過 `?eid=` 帶到感謝頁網址上（不含個資），供鼎東設定的 Meta Pixel 標籤與後端 Meta CAPI 呼叫做去重比對。
 
 ---
 
@@ -226,8 +243,8 @@ npm run dev              # http://localhost:3000
 | `SESSION_SECRET` | 後台登入 cookie 簽章密鑰 | 🔵 CTO（隨機字串即可） | 未設定將直接報錯，刻意避免以弱密鑰悄悄運作 |
 | `EXPORT_TOKEN` | CTO 專用匯出端點（CLI／`/api/export`）之權杖，**刻意與後台登入分開**，PR 角色帳號即使登入 `/admin` 也拿不到這個權杖 | 🔵 CTO 自行保管，不轉交公關 | 未設定則無法使用 `/api/export` |
 | `INITIAL_CTO_EMAIL` / `INITIAL_CTO_PASSWORD` | 僅供 `npm run seed:admin` 使用一次，建立資料庫裡第一個 `CTO` 角色帳號 | 🔵 CTO | 未設定：`seed:admin` 直接報錯並中止，不會建立帳號 |
-| `NEXT_PUBLIC_GTM_ID` | GTM 容器 ID | 🟠 Lindy（文件 §3） | 未設定：網站將完全不注入 GTM 腳本，不影響運作 |
-| `NEXT_PUBLIC_GA4_ID` | 備忘用途（GA4 於 GTM 容器內設定，本站不直接讀取） | 🟠 Lindy | 不影響程式運作 |
+| `NEXT_PUBLIC_GTM_ID` | GTM 容器 ID | 🩷 鼎東（2026/08/06 文件更新：容器＋內部 Tag／Trigger 皆由鼎東維護，非 CTO 建置） | 未設定：網站將完全不注入 GTM 腳本，不影響運作；**真實值已提供：`GTM-M583KSV7`**，部署時填入即可 |
+| `NEXT_PUBLIC_GA4_ID` | 備忘用途（GA4 於 GTM 容器內設定，本站不直接讀取） | 🟠 Lindy（GA4 已開通） | 不影響程式運作；**真實值已提供：`G-C2D5DC3DLS`** |
 | `META_CAPI_TOKEN` / `META_PIXEL_ID` | Meta Conversions API 伺服器端事件 | 🩷 公關公司（文件 §5） | 未設定：`sendMetaCAPI` 為 no-op + log，不影響報名流程 |
 | `EMAIL_PROVIDER` / `RESEND_API_KEY` / `EMAIL_FROM` | 報名確認信 | 🟣 公司申辦交易信帳號（文件 §6.5） | `EMAIL_PROVIDER=none` 時為 log-only，不寄信亦不報錯 |
 | `RAGIC_API_TOKEN` / `RAGIC_BASE_URL` | Ragic 名單同步（Phase B，尚未實作實際串接邏輯） | 🟣 BD／🟠 Lindy（文件 §6.2） | 未設定：`syncToRagic` 為 no-op + log |
@@ -340,9 +357,9 @@ SQLite 是單一檔案（`prisma/dev.db`），寫入的資料就存在「跑這�
 
 | # | 項目 | 所需條件 |
 |---|---|---|
-| 4 | 確認信實際送達 Gmail／Outlook 且未進垃圾郵件匣 | 🟣 交易信服務帳號 + `agatha-ai.com` SPF/DKIM 驗證 |
-| 7 | GA4 即時報表顯示造訪、`registration_submit` 標記為關鍵事件 | 🟠 Lindy 提供之 `G-XXXXXXX` |
-| 8 | Meta 像素測試事件工具驗證 | 🩷 公關提供 Meta 像素／CAPI（文件本身亦註記「視 Alice 是否已提供代碼」，可順延處理）|
+| 4 | 確認信實際送達 Gmail／Outlook 且未進垃圾郵件匣 | 🟣 交易信服務帳號 + 寄件網域 SPF／DKIM／DMARC 皆需完成（2026/08/06 文件明確列出三項） |
+| 7 | GA4 即時報表顯示造訪、`generate_lead` 標記為關鍵事件（GA4 ID 已提供：`G-C2D5DC3DLS`） | 🩷 鼎東於 GTM／GA4 後台設定 Trigger（比對感謝頁網址），非本專案程式碼推送 |
+| 8 | Meta 像素測試事件工具驗證 | 🩷 鼎東負責建立 Meta Pixel／Pixel Tag／Trigger 並用 Meta Test Events 驗證 |
 
 **QA 過程中發現之環境問題（已排除，非程式碼缺陷）：** 長時間運行之 `next dev` 開發伺服器快取一度損毀，導致 `/seminar/0915/thanks` 短暫回傳 500；經全新 `next build` 與重啟 `next dev` 確認原始碼無誤。**建議 8/5 測試窗口正式開始前，於 staging 環境重新啟動一次服務**，或改以 `next build && next start` 執行（避開 dev 模式 Fast Refresh 的快取風險）。
 
@@ -353,13 +370,15 @@ SQLite 是單一檔案（`prisma/dev.db`），寫入的資料就存在「跑這�
 1. ~~感謝頁與確認信文案「7 個工作天」版本~~——**已確認（2026/08/05）**：採用文件官方版本（不載明天數），與目前程式碼一致，不需改動。
 2. `/admin` 已改為個別帳號登入；目前僅有一組 CTO 帳號（由 `seed:admin` 建立），公關的 PR 角色帳號請於 `/admin/accounts` 建立後交付對應人員，交付方式（帳號密碼如何轉交）尚待確認。
 3. `agatha-ai.com` 之部署與 DNS 設定，已改由主管方負責，本次交付範圍未涵蓋此項；**請轉知主管一項技術限制**：部署主機須為持久化硬碟類型（例如一般 VM／VPS，或 Render／Railway／Fly.io 勾選 persistent volume 的方案），**不能是 Vercel 預設的 serverless 部署**，否則純 SQLite 寫入的報名資料可能遺失（詳見「資料庫架構」一節）。
+4. **（2026/08/06 新增）確認信寄件網域須完成 SPF／DKIM／DMARC 三項 DNS 設定**（0805 文件 §6.8 明確列出）——這是網域層級設定，工程端無法自行完成，需請掌管 `emergence.today`／`agatha-ai.com` DNS 的窗口協助設定，並在申辦交易信服務帳號（Resend）時一併完成網域驗證，否則確認信可能被判定為垃圾郵件或直接退信。
+5. **（2026/08/06 新增）GTM／GA4 真實 ID 已提供**（`GTM-M583KSV7`／`G-C2D5DC3DLS`），需要在正式部署時填入 `.env` 的 `NEXT_PUBLIC_GTM_ID`（`NEXT_PUBLIC_GA4_ID` 僅供備忘）；另請鼎東確認是否已依文件 §5.1 取得該 GTM 容器的擁有者／管理員權限（`marketing@emergence.today`）。
 
 ---
 
 ## 後續規劃（對照文件 §10 關鍵時程）
 
 - **8/10 前**：由主管方完成部署與網域設定；工程端僅需確認部署主機屬於「持久化硬碟」類型（見上方「資料庫架構」），純 SQLite 即可運作，不強制要求 Turso。
-- **8/11**：開放報名並投放廣告，此時 GTM／GA4／Meta 像素／交易信憑證須全數補齊至 `.env`。
+- **8/11**：開放報名並投放廣告，此時 GTM／GA4（已提供，待部署填入 `.env`）／Meta 像素（鼎東於 GTM 端設定，非 `.env`）／交易信憑證須全數到位。
 - **9/7**：官網首頁上線（同網域並存，不在本次交付範圍）。
 - **9/12 前**：公關以 Excel 報名名單寄送行前通知——使用 `npm run export:registrations` 或 `/admin` 內建按鈕產出之 `.xlsx`。
 - **Phase B**（不阻塞 8/10）：Ragic 即時串接（目前為 no-op stub）；Banner 上傳／活動資訊 CMS——**規格已完成**（[`openspec/changes/add-banner-event-info-cms/`](openspec/changes/add-banner-event-info-cms/)），尚待實作，需要先建置這個專案目前還沒有的檔案上傳基礎建設。
@@ -375,7 +394,7 @@ SQLite 是單一檔案（`prisma/dev.db`），寫入的資料就存在「跑這�
 | OpenSpec 規格（proposal/design/specs/tasks） | `done` | 已通過 `validate --strict` |
 | 落地頁移植（`/seminar/0915`） | `done` | 文案／樣式 1:1 沿用原型 |
 | 報名 API（`/api/register`） | `done` | 驗證、冪等性、fire-and-forget 均已測試 |
-| 感謝頁（`/seminar/0915/thanks`） | `done` | 含加入行事曆、`registration_submit` |
+| 感謝頁（`/seminar/0915/thanks`） | `done` | 含加入行事曆；2026/08/06 文件更新後不再推送 `registration_submit`，GA4／Meta 轉換改由鼎東於 GTM 依網址設定 Trigger |
 | 後台（`/admin`） | `done` | 個別帳號＋角色（CTO／PR）登入；已測試登入／篩選／標記／重寄信 |
 | 帳號管理（`/admin/accounts`） | `done` | CTO 專屬；新增／停用／重設密碼皆已測試，API 與頁面層皆拒絕 PR 角色存取 |
 | 名單匯出（`.xlsx`，CLI＋`/admin` 按鈕＋`/api/export`） | `done` | 已測試 PR 角色 403、CTO 角色 200 且輸出為有效 `.xlsx`；動作皆寫入稽核紀錄 |
@@ -390,7 +409,9 @@ SQLite 是單一檔案（`prisma/dev.db`），寫入的資料就存在「跑這�
 | 部署與網域 | `ongoing` | 由主管方負責；工程端已告知唯一限制——主機須為持久化硬碟類型（非 Vercel 等 serverless），純 SQLite 才能正常運作 |
 | 8/5 測試窗口前重啟 staging 服務 | `open` | QA 發現長時間運行之 `next dev` 快取可能損毀，建議測試窗口開始前重啟一次，或改用 `next build && next start` |
 | 視覺截圖驗收（RWD／動畫） | `open` | 本次瀏覽器分頁未顯示畫面合成，僅驗證 DOM／互動邏輯，未執行截圖比對 |
-| 🟠🩷🟣 正式 GA4／Meta／交易信／Ragic 憑證 | `open` | 分別待 Lindy／公關公司／公司財務提供，非工程可自行產生 |
+| 🩷 GTM／GA4 真實 ID | `done` | 2026/08/06 文件更新已提供：`GTM-M583KSV7`／`G-C2D5DC3DLS`；尚待部署時填入正式環境 `.env` |
+| 🟣 正式交易信／Ragic 憑證 | `open` | 分別待公司財務／BD 提供，非工程可自行產生 |
+| 🩷 Meta Pixel／Pixel Tag／Trigger 建立與測試 | `open` | 改由鼎東技術團隊於 GTM／Meta Business Manager 設定與驗證，非本專案程式碼範圍 |
 | `agatha-ai.com` 部署與 DNS | `open` | 須由你方親自操作或授權，本次交付範圍未涵蓋 |
 | PR 角色帳號交接予公關 | `open` | 目前僅有一組 CTO 帳號，需於 `/admin/accounts` 建立 PR 帳號後決定交付方式 |
 | 感謝頁／確認信文案「7 個工作天」版本 | `done` | 2026/08/05 已確認採用文件官方版本（不載明天數），與現行程式碼一致 |

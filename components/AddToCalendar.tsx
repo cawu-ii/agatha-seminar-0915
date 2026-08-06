@@ -1,6 +1,6 @@
 "use client";
 
-const TITLE = "製造業 Agentic AI 商用實戰論壇";
+const TITLE = "製造業 AI 商用實戰論壇";
 const LOCATION = "台北・華南銀行國際會議中心";
 const DETAILS = "湧現智庫 Agatha 主辦。本論壇採資格審核制，審核結果將另行以 Email 通知。";
 // 2026-09-15 13:30-16:30 Asia/Taipei (UTC+8) expressed in UTC for the calendar payloads.

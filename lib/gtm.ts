@@ -1,14 +1,7 @@
-export type DataLayerEvent =
-  | { event: "lp_view" }
-  | { event: "cta_click" }
-  | {
-      event: "registration_submit";
-      event_id: string;
-      utm_source?: string | null;
-      utm_medium?: string | null;
-      utm_campaign?: string | null;
-      utm_content?: string | null;
-    };
+// GA4's Key Event (generate_lead) and Meta's Lead event are configured as
+// GTM Triggers matching the thank-you page's URL, owned by the PR agency's
+// technical team - not pushed from here (openspec: update-tracking-integration).
+export type DataLayerEvent = { event: "lp_view" } | { event: "cta_click" };
 
 declare global {
   interface Window {

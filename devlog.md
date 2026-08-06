@@ -473,3 +473,29 @@
 **驗證方式：** `npm run build` 過。瀏覽器裡登入後六個後台畫面逐一截圖確認樣式修好了。議程管理實際拖曳一筆項目、重新整理頁面確認新順序有正確寫進資料庫（不是只有畫面上暫時對、實際沒送出去），再拖曳回原位。表單選項管理也實測拖曳排序有效，同樣拖回原位、逐項比對過跟原始種子順序完全一致才收尾。
 
 **同步更新：** 這次是既有功能的 UI 呈現方式調整（排序機制從按鈕換成拖曳），沒有動到 OpenSpec 規格裡「管理員可以改變顯示順序」這個需求本身的描述（規格沒有規定用什麼互動方式達成排序），所以沒有另開 OpenSpec change 或補 MODIFIED delta，只記在這裡。
+
+## Phase 30 — 交接文件 0805/0806 更新：GTM／GA4 憑證到位、追蹤事件改版（`update-tracking-integration`）（2026-08-06）
+
+**做了什麼：** Lindy 於 2026/08/06 轉發交接文件 0805 修訂版（`Agatha_Seminar_報名系統與追蹤_CTO交接文件_0805.docx`），訊息裡特別點名「GTM 碼安裝、報名流程設定（感謝頁＋發送報名確認信）、埋 UTM」是這次更新的重點。跟前面幾次交接文件比對一樣，先把新舊兩版 docx 解壓、抓出純文字逐段比對（環境裡沒裝 pandoc，沿用 Phase 28 建立的 `unzip` + 抓 `<w:t>` 節點做法），確認實際變動範圍再動手。
+
+- **GTM／GA4 真實憑證第一次到位**：GA4 評估 ID `G-C2D5DC3DLS`（已開通）、GTM 容器 `GTM-M583KSV7`（已開通，文件內附完整 `<head>`／`<body>` 貼上程式碼，跟 `components/GtmLoader.tsx` 既有的注入邏輯逐字比對完全一致，代表這段程式碼從一開始的「設定驅動、真實 ID 隨時可插」設計是對的，不需要改程式碼，只需要在正式部署的 `.env` 填入這兩個值）。
+- **這次真正的需求變化，不是「多了憑證」，是「追蹤層的責任歸屬換人」**：0805 版文件 §5.1／§6.9 明確把「GTM Container 維護、GA4 Tag 建立、Meta Pixel／Meta Pixel Tag 建立、Trigger 設定、GTM Preview 測試」全部劃給鼎東（公關公司的技術團隊），湧現（CTO）只剩「Landing Page、CMS、Database、報名資料、Excel 匯出」。這跟 0804 版預設「CTO 自己埋 GTM／GA4／Meta」完全不同——原來公關公司自己有技術團隊，直接把追蹤層的維運責任接走了。
+- **GA4 主轉換事件（Key Event）的做法整個換掉**：文件明文寫「本次不另外建立 `registration_submit` 事件；GA4 以 `generate_lead` 作為正式報名完成事件」，且 `generate_lead` 的觸發條件是「Trigger: `page_view`；Page Location contains: `/seminar/0915/thanks`」——這是鼎東在 GTM／GA4 後台直接設定的網址比對 Trigger，不是我方程式碼推的事件。Meta 的 Lead 事件同理，文件建議「以 Thanks Page 作為完成事件，避免使用 Submit Button Trigger」。這代表原本 Phase 6 做的 `ThanksTracker` 元件（推 `registration_submit` 這個自訂事件）從一開始設計的「GTM Trigger 監聽這個自訂事件」這條路徑，現在確定不會有任何 Trigger 去接它了——留著會讓人誤以為它還有作用，直接刪除比留著當死代碼誠實。
+- **順手抓到一個既有、跟這次文件更新無關、但剛好在逐字核對確認信文案時發現的小 bug**：確認信主旨/內文、感謝頁、加入行事曆檔案這三處的活動名稱寫成「製造業 **Agentic** AI 商用實戰論壇」，但 0804／0805 兩版文件的官方文案（§8.1／§8.2）都一致寫「製造業 AI 商用實戰論壇」（沒有「Agentic」），跟網站標題列、落地頁頁尾已經正確不含「Agentic」的版本不一致——三選一複製貼上時多打了一個字，藉這次逐字核對文案的機會一併修正，沒有另開一個 change。
+
+**OpenSpec 處理方式：** 新開 `update-tracking-integration`，MODIFIED `tracking-integration`（事件字典從 3 個事件改成 2 個前端事件＋外部 GTM Trigger 的說明，沿用 `admin-console` 那次學到的「保留原本 scenario 名稱、標題逐字比對」做法）；`thank-you-page` 的「頁面載入時推送轉換事件」這條需求改用 **REMOVED + ADDED**（不是 MODIFIED）——因為這不是同一件事换个说法，是「我方程式碼做 X」變成「我方程式碼什麼都不用做，交給外部設定」，機制整個換了，硬塞進 MODIFIED 只會產生一個文不對題的 scenario。
+
+**程式碼變動：**
+- `lib/gtm.ts`：`DataLayerEvent` 型別拿掉 `registration_submit`，只剩 `lp_view`／`cta_click`。
+- 刪除 `components/ThanksTracker.tsx`；`app/seminar/0915/thanks/page.tsx` 拿掉它的 import／使用，順便發現整個 `searchParams`（`eid`／utm_*）在拿掉 tracker 之後，這個頁面本身完全沒有其他地方在讀它，乾脆把整個 prop 一起清掉，不留半用的殘骸。
+- `components/AddToCalendar.tsx`、`lib/integrations/email.ts`：修正「Agentic」文案。
+- `lib/integrations/meta-capi.ts`：驗證階段發現一處過期註解還在提「client-side registration_submit dataLayer event」，改寫成現在實際的去重機制說明（`event_id` 透過感謝頁網址的 `?eid=` 帶出去，供鼎東設定的 Meta Pixel 標籤讀取比對，不是靠我方推事件）。
+
+**驗證方式：**
+1. `npm run build` 過。**發現一個非預期但正確的副作用**：`/seminar/0915/thanks` 從 `ƒ`（Dynamic）變回 `○`（Static）——因為拿掉 `searchParams` 之後這個頁面真的完全不依賴每次請求的資料了，Next.js 正確判斷可以靜態化。這跟 Phase 24 踩過的「該動態卻被靜態化」是反過來的情況：那次是 bug（該動態的被錯誤靜態化），這次是「本來該動態、拿掉依賴後現在真的可以靜態化」，先確認清楚兩者不是同一回事，不是重蹈覆轍。
+2. 全域搜尋 `registration_submit`／`ThanksTracker`／「Agentic AI 商用實戰論壇」確認程式碼裡沒有殘留（`meta-capi.ts` 裡抓到一處過期註解，已修正；`devlog.md` 裡舊 phase 的歷史紀錄保留不動，那是忠實記錄「當時做了什麼」，不是現在的程式碼狀態，沒有理由回頭改寫歷史）。
+3. 瀏覽器開感謝頁確認文案正確顯示「製造業 AI 商用實戰論壇」（無 Agentic）、console 沒有錯誤（`ThanksTracker` 拿掉後不會有孤兒 import 報錯）。
+
+**同步更新：** `openspec/changes/update-tracking-integration/tasks.md` 全部項目勾選，`openspec validate --strict` 過後歸檔為 `2026-08-06-update-tracking-integration`。README 多處更新：專案說明（感謝頁描述）、與原型 HTML 差異表（追蹤事件說明、新增一列記錄這次更新）、交接文件 v3 更新對照（標題改成同時涵蓋 0804／0805-0806，新增一列）、角色與分工（鼎東角色範圍大幅擴大，明確標註 2026/08/06 更新）、系統資料流圖（GTM 節點的顏色/描述改成鼎東而非 Lindy、感謝頁到 GTM 的箭頭改成虛線＋外部設定說明，拿掉不再存在的 `lindy` 顏色類別）、新增「追蹤事件字典」獨立章節（對照文件 §6.6）、`.env` 變數說明表（GTM／GA4 真實值已知，負責窗口改成鼎東）、§12 測試表對照（GA4／Meta 測試項目改成鼎東負責、SPF/DKIM/DMARC 三項並列）、待確認事項（新增 SPF/DKIM/DMARC 與 GTM 權限確認兩項，皆標註 2026/08/06 新增）、後續規劃（8/11 時程行動補充憑證到位狀態）、專案進度追蹤表（新增 GTM／GA4 真實 ID 已到位、Meta Pixel 建置改鼎東負責兩列）。
+
+**下載並保留的原始文件**：`Agatha_Seminar_報名系統與追蹤_CTO交接文件_0805.docx` 已複製進專案根目錄（比照既有 0729／0804 兩版的做法），受 `.gitignore` 的 `Agatha_Seminar*CTO交接文件*.docx` 萬用字元規則保護，不會進版控。

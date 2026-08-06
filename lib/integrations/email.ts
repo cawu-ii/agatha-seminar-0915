@@ -1,7 +1,7 @@
 import type { Registration } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
-const EVENT_NAME = "製造業 Agentic AI 商用實戰論壇";
+const EVENT_NAME = "製造業 AI 商用實戰論壇";
 const EVENT_WHEN = "2026/09/15（二）13:30–16:30";
 const EVENT_WHERE = "台北・華南銀行國際會議中心";
 

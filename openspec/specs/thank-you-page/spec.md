@@ -17,13 +17,6 @@ The system SHALL only pass non-personal identifiers (the `event_id` and UTM valu
 - **WHEN** the client redirects to the thank-you page after a successful submission
 - **THEN** the resulting URL contains only `event_id` and UTM parameters, no form field values
 
-### Requirement: Primary conversion event fires on page load
-The system SHALL push a `registration_submit` dataLayer event when the thank-you page loads, including the `event_id` and UTM values, and SHALL NOT include PII in that event's parameters.
-
-#### Scenario: Page load with event_id present
-- **WHEN** the thank-you page loads with a valid `event_id` query parameter
-- **THEN** a `registration_submit` dataLayer event is pushed exactly once, carrying `event_id` and UTM values only
-
 ### Requirement: Attendee can add the event to their calendar
 The system SHALL provide a way to add the event to the attendee's calendar (date, time, venue, title) directly from the thank-you page without requiring a third-party account.
 
@@ -37,4 +30,11 @@ The system SHALL provide a link back to `/seminar/0915` from the thank-you page.
 #### Scenario: Attendee clicks return
 - **WHEN** the attendee clicks "返回活動頁"
 - **THEN** the browser navigates to `/seminar/0915`
+
+### Requirement: Thank-you page URL is the external conversion measurement point
+The system SHALL keep the thank-you page's URL stable at `/seminar/0915/thanks` so that externally-configured GTM Triggers (GA4 `generate_lead` Key Event, Meta Lead event) can match against it, without the system itself pushing a conversion-specific dataLayer event.
+
+#### Scenario: Attendee reaches the thank-you page
+- **WHEN** a registration succeeds and the browser is redirected to `/seminar/0915/thanks`
+- **THEN** the URL path is exactly `/seminar/0915/thanks`, matching what the externally-configured GTM Trigger expects, and the system does not push any additional conversion-specific event
 

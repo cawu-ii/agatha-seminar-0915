@@ -14,8 +14,11 @@ function sha256(value: string): string {
 
 /**
  * Sends the server-side Meta Conversions API "Lead" event for a registration.
- * Uses the same event_id as the client-side registration_submit dataLayer event
- * so Meta dedupes the browser pixel hit against this server hit (doc §6.4).
+ * event_id is also passed as `?eid=` on the thank-you page redirect, so a
+ * browser-side Meta Pixel tag reading it from the URL can dedupe against this
+ * server hit (doc §6.4) - the Pixel tag itself is GTM-configured by the PR
+ * agency's technical team, not pushed from this codebase (openspec:
+ * update-tracking-integration).
  * No-op + log when META_CAPI_TOKEN is unset - never throws, never blocks registration.
  */
 export async function sendMetaCAPI(input: CapiInput): Promise<void> {
