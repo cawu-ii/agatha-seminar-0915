@@ -25,8 +25,8 @@
 1. **硬碟必須是 EBS（持久化），不能是 Instance Store**。資料庫是本機檔案（SQLite），寫入的資料就存在這台機器的硬碟上。Instance Store 型態的儲存空間在機器停止（stop，非 reboot）時會被清空，屆時所有報名資料會直接消失且無法復原。開機前務必確認這台 EC2 掛載的是 EBS volume。
 2. **只能有一台常駐的應用程式行程**，不能做水平擴展（多台 EC2 各自跑一份）。SQLite 檔案不是共用資料庫，兩個行程各自寫入會導致資料分歧、甚至檔案損毀。如果之後真的需要多台機器分攤流量，要先評估切回 Postgres 或啟用專案裡已經預留的 Turso（雲端託管 SQLite）路徑，不能直接疊加一台新機器了事。
 3. **Node.js 版本 18.18 以上**（建議直接用 20 LTS），這是 Next.js 15 的最低需求。用 `node -v` 確認。
-4. **Security Group 只開必要的 port**：對外只需要 443（及可能的 80 用於轉址到 443），應用程式本身監聽的 port（預設 3000）不應該直接對外開放，應該透過反向代理（見下方「與主管方需要對齊的事」）。SSH（22）建議限制來源 IP，不要對全網開放。
-5. **確認這台機器不是別的服務也在用的共用機器**，或至少確認 port 3000（或你們決定使用的 port）沒有被佔用。
+4. **Security Group 只開必要的 port**：對外只需要 443（及可能的 80 用於轉址到 443），應用程式本身監聽的 port（`3003`，見下方「與主管方需要對齊的事」）不應該直接對外開放，應該透過反向代理。SSH（22）建議限制來源 IP，不要對全網開放。
+5. **這台 EC2 已經在跑其他服務（`whm-backend`／`whm-frontend`），確認 3003 沒有被佔用**：`sudo lsof -i :3003`，確認乾淨（沒有輸出）再啟動。這台機器上 port 3000 可能被別的東西占用或處於不明狀態，**本專案固定改用 3003，不使用 3000**，避免衝突。
 
 ---
 
@@ -106,10 +106,10 @@ npm run seed:event-info
 # 7) build 正式版本
 npm run build
 
-# 8) 先用前景模式試跑一次，確認沒有立即報錯
+# 8) 先用前景模式試跑一次，確認沒有立即報錯（固定監聽 3003，見 package.json 的 start 指令）
 npm run start
 # 另開一個終端機或用 curl 確認能連上：
-#   curl -I http://localhost:3000/seminar/0915
+#   curl -I http://localhost:3003/seminar/0915
 # 確認回應是 200 之後，Ctrl+C 停掉這個前景行程，改用下一節的常駐方式執行
 ```
 
@@ -146,8 +146,8 @@ pm2 save
 
 這部分工程端不用自己決定，但**需要主動提供以下資訊**給負責網域的人，避免對方猜測或來回確認：
 
-1. **這台 EC2 應用程式監聽的 port**：預設是 `3000`（`next start` 的預設值），如果要改成別的 port，`package.json` 的 `start` 指令要加上 `-p <port>`，並同步告知對方改成了幾號。
-2. **TLS（HTTPS）由誰處理**：常見兩種做法——(a) 這台 EC2 上額外裝一個 Nginx／Caddy 做反向代理並掛憑證（例如 Let's Encrypt），對外只開 443；或 (b) 前面掛 ALB（Application Load Balancer）在 ALB 層做 TLS termination，EC2 只需要對 ALB 開放 3000。**這件事要先問清楚採哪一種**，因為會決定 Security Group 要開放的來源與 port 不一樣。
+1. **這台 EC2 應用程式監聽的 port**：**`3003`**（`package.json` 的 `start` 指令已改成 `next start -p 3003`，因為這台機器上 3000 另有他用／狀態不明，本專案固定改用 3003 避免衝突）。
+2. **TLS（HTTPS）由誰處理**：常見兩種做法——(a) 這台 EC2 上額外裝一個 Nginx／Caddy 做反向代理並掛憑證（例如 Let's Encrypt），對外只開 443；或 (b) 前面掛 ALB（Application Load Balancer）在 ALB 層做 TLS termination，EC2 只需要對 ALB 開放 3003。**這件事要先問清楚採哪一種**，因為會決定 Security Group 要開放的來源與 port 不一樣。
 3. **最終網域名稱**：確認之後，如果之後要啟用交易信（Resend）寄信功能，寄件網域的 SPF/DKIM 驗證要對到這個正式網域，不是 EC2 的預設 DNS 名稱。
 4. **健康檢查路徑**（如果對方用的是 ALB 或類似機制）：可以用 `/seminar/0915`，會回 200。
 
@@ -155,7 +155,7 @@ pm2 save
 
 ## 上線前自我檢查清單
 
-在告知主管方「可以掛網域了」之前，先在 EC2 本機（或透過 SSH port-forward：`ssh -L 3000:localhost:3000 <你的 EC2>`，再用自己電腦瀏覽器連 `http://localhost:3000`）走過一次：
+在告知主管方「可以掛網域了」之前，先在 EC2 本機（或透過 SSH port-forward：`ssh -L 3003:localhost:3003 <你的 EC2>`，再用自己電腦瀏覽器連 `http://localhost:3003`）走過一次：
 
 - [ ] `/seminar/0915` 落地頁能正常開啟，議程／講者／合作夥伴／活動亮點／活動資訊五個區塊都有內容（不是空白）——這五個各對應一個 seed 指令，任一個忘記跑就會有一區是空的
 - [ ] 登入 `/admin/banner` 上傳桌機（2560×1440）與手機（1080×1350）Hero Banner 圖片，回落地頁確認依裝置寬度正確切換顯示（未上傳前 Hero Banner 區塊不顯示是正常狀態，不是壞掉）
