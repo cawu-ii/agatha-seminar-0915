@@ -407,8 +407,7 @@ SQLite 是單一檔案（`prisma/dev.db`），寫入的資料就存在「跑這�
 | SQLite 資料庫決策 | `done` | 主管確認**純 SQLite 即可**，不強制 Turso，不再規劃 Postgres／Supabase 切換 |
 | 資料庫連線程式碼（`lib/prisma.ts` adapter，Turso 選用／預設純 SQLite） | `done` | 已實作並驗證本機檔案模式；`serverExternalPackages` 已排除 libsql 打包問題；Turso 為選用加值，非必要 |
 | 部署與網域 | `ongoing` | 由主管方負責；工程端已告知唯一限制——主機須為持久化硬碟類型（非 Vercel 等 serverless），純 SQLite 才能正常運作 |
-| 8/5 測試窗口前重啟 staging 服務 | `open` | QA 發現長時間運行之 `next dev` 快取可能損毀，建議測試窗口開始前重啟一次，或改用 `next build && next start` |
-| 視覺截圖驗收（RWD／動畫） | `open` | 本次瀏覽器分頁未顯示畫面合成，僅驗證 DOM／互動邏輯，未執行截圖比對 |
+| 視覺截圖驗收（RWD） | `done` | 2026/08/05 已於瀏覽器完成桌機／手機截圖驗收：Hero、活動亮點、活動資訊、議程、講者、合作夥伴、報名表單皆正常，手機版單欄排版無跑版；僅驗證靜態畫面，未含動畫效果 |
 | 🩷 GTM／GA4 真實 ID | `done` | 2026/08/06 文件更新已提供：`GTM-M583KSV7`／`G-C2D5DC3DLS`；尚待部署時填入正式環境 `.env` |
 | 🟣 正式交易信／Ragic 憑證 | `open` | 分別待公司財務／BD 提供，非工程可自行產生 |
 | 🩷 Meta Pixel／Pixel Tag／Trigger 建立與測試 | `open` | 改由鼎東技術團隊於 GTM／Meta Business Manager 設定與驗證，非本專案程式碼範圍 |
