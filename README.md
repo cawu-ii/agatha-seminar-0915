@@ -58,7 +58,7 @@ Next.js（App Router + TypeScript）全端專案：
 | UTM（`utm_source=...`） | 未處理，連結尾端參數被忽略 | 網址上的 UTM 參數會被擷取，並隨該筆報名一併存入資料庫 |
 | 感謝頁 | 無獨立網址，僅為同頁切換至另一個 `<div>` | 具備獨立網址 `/seminar/0915/thanks`，新增「加入 Google 日曆」「下載 .ics」兩項功能（原型未提供） |
 | 追蹤（GTM／GA4／Meta） | 完全未埋設，原始碼中無任何 GTM 相關程式碼 | 已完成 GTM 容器、同意橫幅、兩項前端事件（`lp_view`／`cta_click`）之程式邏輯；GA4 Key Event（`generate_lead`）與 Meta Lead 改由鼎東於 GTM／GA4 後台依感謝頁網址設定 Trigger，不再由前端程式碼推送（2026/08/06 交接文件更新，見下方「事件字典」）；**GTM 容器代碼已定案為 `GTM-M6P5QTRM`**（湧現／Lindy 自建，2026/08/06 下午文件確認，取代先前暫緩的 `GTM-M583KSV7`），待部署時填入 `.env`，安裝範圍為 Landing Page（非全站） |
-| 確認信 | 無此功能 | 已具備寄信邏輯，未設定交易信帳號時僅於伺服器 log 記錄應發送對象，不會實際寄出 |
+| 確認信 | 無此功能 | 已具備寄信邏輯；**2026/08/07 起正式站已透過 Gmail SMTP 路徑實際寄出並確認送達** |
 | Meta CAPI | 無 | 同上，邏輯已完成，未設定憑證時為 no-op |
 | 後台（`/admin`） | 不存在 | 新建功能，CTO／公關以個別帳號登入查看名單、篩選、標記處理狀態、重寄確認信 |
 | 名單匯出 | 不存在 | 匯出功能，`.xlsx` 格式；CLI（`EXPORT_TOKEN`）僅 CTO 可用，`/admin` 內建按鈕 2026/08/07 起 CTO／PR 皆可用，兩條路徑皆記錄稽核紀錄 |
@@ -256,7 +256,7 @@ npm run dev              # http://localhost:3000
 | `NEXT_PUBLIC_GA4_ID` | 備忘用途（GA4 於 GTM 容器內設定，本站不直接讀取） | 🟠 Lindy（GA4 已開通） | 不影響程式運作；⚠️ 同上，`G-C2D5DC3DLS` 是否隨容器代碼一併更換待確認 |
 | `META_CAPI_TOKEN` / `META_PIXEL_ID` | Meta Conversions API 伺服器端事件 | 🩷 公關公司（文件 §5） | 未設定：`sendMetaCAPI` 為 no-op + log，不影響報名流程 |
 | `EMAIL_PROVIDER` / `RESEND_API_KEY` / `EMAIL_FROM` | 報名確認信（Resend 路徑，需網域 DNS 驗證） | 🟣 公司申辦交易信帳號（文件 §6.5） | `EMAIL_PROVIDER=none` 時為 log-only，不寄信亦不報錯 |
-| `GMAIL_USER` / `GMAIL_APP_PASSWORD` | 報名確認信（**2026/08/07 新增**的 Gmail SMTP 替代路徑：`EMAIL_PROVIDER=gmail`，用既有 `service@emergence.today` Gmail 帳號直接寄信，免 DNS/SPF/DKIM 設定） | 🟠 Lindy（[myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords) 生成，**不是**帳號登入密碼——16 碼小寫字母、4 碼一組） | 未設定時，若 `EMAIL_PROVIDER=gmail` 會落回 log-only；`EMAIL_PROVIDER=resend`／`none` 則完全不影響 |
+| `GMAIL_USER` / `GMAIL_APP_PASSWORD` | 報名確認信（**2026/08/07 新增**的 Gmail SMTP 替代路徑：`EMAIL_PROVIDER=gmail`，用既有 `service@emergence.today` Gmail 帳號直接寄信，免 DNS/SPF/DKIM 設定） | 🟠 Lindy（[myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords) 生成，**不是**帳號登入密碼——16 碼小寫字母、4 碼一組） | **✅ 已於正式站設定並實測成功**（2026/08/07）；未設定時，若 `EMAIL_PROVIDER=gmail` 會落回 log-only |
 | `RAGIC_API_TOKEN` / `RAGIC_BASE_URL` | Ragic 名單同步（Phase B，尚未實作實際串接邏輯） | 🟣 BD／🟠 Lindy（文件 §6.2） | 未設定：`syncToRagic` 為 no-op + log |
 
 ---
@@ -390,7 +390,7 @@ SQLite 是單一檔案（`prisma/dev.db`），寫入的資料就存在「跑這�
 1. ~~感謝頁與確認信文案「7 個工作天」版本~~——**已確認（2026/08/05）**：採用文件官方版本（不載明天數），與目前程式碼一致，不需改動。
 2. `/admin` 已改為個別帳號登入；目前僅有一組 CTO 帳號（由 `seed:admin` 建立），公關的 PR 角色帳號請於 `/admin/accounts` 建立後交付對應人員，交付方式（帳號密碼如何轉交）尚待確認。
 3. ~~`agatha-ai.com` 之部署與 DNS 設定~~——**已確認（2026/08/06）**：主管方已知悉並會親自處理，含持久化硬碟主機類型的技術限制，工程端不需再追蹤此項。
-4. ~~確認信寄件網域須完成 SPF／DKIM／DMARC 三項 DNS 設定~~——**2026/08/07 新增替代路徑，暫緩此項**：`emergence.today` 網域非本公司持有，Resend 網域驗證需要的 DNS 權限取得有不確定性；改用 **Gmail SMTP 直接寄信**（`EMAIL_PROVIDER=gmail`），因為 `service@emergence.today` 本身已是可用的 Gmail 帳號，用 Google 應用程式密碼透過 Gmail 自己的伺服器寄信，完全不需要碰 DNS。程式碼已完成（`lib/integrations/email.ts`），待 Lindy 提供的應用程式密碼確認格式無誤後，由你自行填入 EC2 的 `.env`（`GMAIL_USER`／`GMAIL_APP_PASSWORD`）即可啟用，見下方「.env 環境變數說明」。
+4. ~~確認信寄件網域須完成 SPF／DKIM／DMARC 三項 DNS 設定~~——**已解決（2026/08/07）**：`emergence.today` 網域非本公司持有，Resend 網域驗證需要的 DNS 權限取得有不確定性；改用 **Gmail SMTP 直接寄信**（`EMAIL_PROVIDER=gmail`），因為 `service@emergence.today` 本身已是可用的 Gmail 帳號，用 Google 應用程式密碼透過 Gmail 自己的伺服器寄信，完全不需要碰 DNS。EC2 `.env` 已填入 `GMAIL_USER`／`GMAIL_APP_PASSWORD`，**實測確認信已成功寄達**，此項結案，不再需要 Resend／DNS 網域驗證。
 5. ~~GTM／GA4 真實 ID 已提供（`GTM-M583KSV7`／`G-C2D5DC3DLS`）~~——**2026/08/06 下午最終定案**：0806 下午版交接文件確認 GTM 容器改由湧現內部（Lindy）自建 `GTM-M6P5QTRM`（取代上午暫緩的 `GTM-M583KSV7`），CTO 安裝範圍為 **Landing Page**（非全站），鼎東取得 Editor 權限、範圍限定 Meta／Digitimes；GA4 ID 仍為 `G-C2D5DC3DLS`。**待部署時填入 `.env` 的 `NEXT_PUBLIC_GTM_ID`**，本機 `.env` 目前仍為空值。
 6. **（2026/08/06 新增，已確認無需異動）主管指示確認信寄件人須為 `service@emergence.today`**——查核 `lib/integrations/email.ts` 與 `.env` 皆已使用此位址（`EMAIL_FROM` 預設值與現有設定一致），**程式碼與設定皆已符合，無需修改**。
 7. ~~公關公司是否應有 CMS 權限～與交接文件 §9 checklist「不提供公關公司 CMS 權限」是否衝突~~——**已確認（2026/08/06）**：「公司公關」（Lindy，湧現內部）與「公關公司」（鼎東，外部代理商）是兩個不同對象；PR 角色帳號（CMS 完整權限）僅提供給 Lindy，鼎東不持有本專案任何帳號，與 checklist 要求一致，**不衝突，無需調整權限程式碼**。
@@ -433,7 +433,7 @@ SQLite 是單一檔案（`prisma/dev.db`），寫入的資料就存在「跑這�
 | 🟠 GTM／GA4 真實 ID | `done` | 2026/08/06 上午一度提供 `GTM-M583KSV7`／`G-C2D5DC3DLS`，下午改為湧現／Lindy 自建之 `GTM-M6P5QTRM`（現行、已定案）；待部署時填入 `.env` 的 `NEXT_PUBLIC_GTM_ID`，安裝範圍為 Landing Page（非全站） |
 | 確認信／感謝頁文案：品牌前綴更新 | `done` | 依 0806 下午版官方文案，信件主旨與感謝頁內文補上「湧現智庫Agatha」品牌名稱（`lib/integrations/email.ts`、`app/seminar/0915/thanks/page.tsx`），已於瀏覽器驗證感謝頁顯示正確 |
 | 公司公關（Lindy）vs 公關公司（鼎東）CMS 權限釐清 | `done` | 確認交接文件 §9「不提供公關公司 CMS 權限」指外部代理商鼎東，非 Lindy；本專案 PR 角色帳號僅提供給 Lindy，與現行權限設計一致，無需調整程式碼 |
-| 🟣 正式交易信憑證 | `ongoing` | 2026/08/07 改走 Gmail SMTP 路徑（`EMAIL_PROVIDER=gmail`），程式碼已完成並通過 `npm run build`；待確認 Lindy 提供的應用程式密碼格式無誤後填入 EC2 `.env` 即可啟用，不再依賴 Resend／DNS 網域驗證 |
+| 🟣 正式交易信憑證 | `done` | 2026/08/07 改走 Gmail SMTP 路徑（`EMAIL_PROVIDER=gmail`），EC2 `.env` 已填入 `GMAIL_USER`／`GMAIL_APP_PASSWORD` 並 `pm2 restart`，**實測確認信已成功寄達**，不再依賴 Resend／DNS 網域驗證 |
 | 🟣 Ragic 憑證 | `open` | 待 BD 提供，非工程可自行產生 |
 | 🩷 Meta Pixel／Pixel Tag／Trigger 建立與測試 | `open` | 改由鼎東技術團隊於 GTM／Meta Business Manager 設定與驗證，非本專案程式碼範圍 |
 | `agatha-ai.com` 部署與 DNS | `ongoing` | 2026/08/06 確認由主管方親自處理，工程端不再追蹤此項細節 |

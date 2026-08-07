@@ -208,7 +208,7 @@ pm2 restart agatha-seminar
 |---|---|
 | `NEXT_PUBLIC_GTM_ID` / `NEXT_PUBLIC_GA4_ID` | ✅ 已提供（`GTM-M6P5QTRM` / `G-C2D5DC3DLS`），部署時直接填入即可 |
 | `META_CAPI_TOKEN` / `META_PIXEL_ID` | 鼎東（公關公司技術團隊） |
-| `GMAIL_USER` / `GMAIL_APP_PASSWORD` | ⏳ 待確認格式：Lindy 已提供一組應用程式密碼，待你核對格式（16 碼小寫字母、4 碼一組）後填入即可，不再依賴 `RESEND_API_KEY`／DNS |
+| `GMAIL_USER` / `GMAIL_APP_PASSWORD` | ✅ 已設定並實測成功（2026/08/07），不再依賴 `RESEND_API_KEY`／DNS |
 | `RAGIC_API_TOKEN` / `RAGIC_BASE_URL` | 不需要——交接文件明確「不串接 Ragic」，這組留空即可，永久 no-op |
 
 詳細對照見 [README.md](README.md) 的「`.env` 環境變數說明」一節。
