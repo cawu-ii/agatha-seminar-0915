@@ -344,6 +344,17 @@ body::after{opacity:.5;background:repeating-linear-gradient(-30deg, transparent 
 .hero h1{font-size:clamp(30px,4.5vw,50px);white-space:nowrap}
 @media(max-width:600px){.hero h1{white-space:normal;font-size:clamp(27px,7.4vw,38px)}}
 
+/* Mobile hero felt too dense (label/heading/subtitle/date/tags/CTAs all
+   stacked with similar-weight gaps, no clear grouping) - trim the outer
+   padding slightly and give the tag row and CTA row more separation from
+   what's above them, so the block reads as distinct groups instead of one
+   solid wall of content. Desktop untouched. */
+@media(max-width:600px){
+  .hero__in{padding-top:56px;padding-bottom:52px}
+  .chips{margin-top:28px}
+  .hero__cta{margin-top:36px}
+}
+
 /* ===== Added for the registration system build (not in original static design) ===== */
 
 /* Consent banner */
