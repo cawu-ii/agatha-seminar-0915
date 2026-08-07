@@ -343,7 +343,7 @@ export default async function SeminarLandingPage() {
         <div className="wrap">
           <div className="sec__h">
             <p className="en">Partners</p>
-            <h2>合作夥伴</h2>
+            <h2>協辦單位</h2>
             <p className="sec__lead">本次論壇講者單位與攤位夥伴（依序排列，非代表排名）。</p>
           </div>
           <PartnerWall
