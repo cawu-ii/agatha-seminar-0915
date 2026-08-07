@@ -6,7 +6,10 @@ import { prisma } from "../lib/prisma";
 import { buildRegistrationsWorkbook, exportFileName } from "../lib/export-workbook";
 
 async function main() {
-  const registrations = await prisma.registration.findMany({ orderBy: { createdAt: "asc" } });
+  const registrations = await prisma.registration.findMany({
+    where: { archived: false },
+    orderBy: { createdAt: "asc" },
+  });
   const workbook = buildRegistrationsWorkbook(registrations);
 
   const outDir = path.join(process.cwd(), "exports");

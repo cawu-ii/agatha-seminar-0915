@@ -17,7 +17,10 @@ export async function GET() {
   }
 
   try {
-    const registrations = await prisma.registration.findMany({ orderBy: { createdAt: "asc" } });
+    const registrations = await prisma.registration.findMany({
+      where: { archived: false },
+      orderBy: { createdAt: "asc" },
+    });
     const buffer = await workbookToBuffer(buildRegistrationsWorkbook(registrations));
 
     await prisma.adminAuditLog.create({

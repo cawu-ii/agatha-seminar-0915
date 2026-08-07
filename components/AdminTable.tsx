@@ -17,6 +17,7 @@ interface Registration {
   emailStatus: "PENDING" | "SENT" | "FAILED" | "SKIPPED";
   reviewed: boolean;
   reviewerNote: string | null;
+  archived: boolean;
   createdAt: string;
 }
 
@@ -33,7 +34,7 @@ const STATUS_CLASS: Record<Registration["emailStatus"], string> = {
   SKIPPED: "admin__pill--skipped",
 };
 
-export function AdminTable() {
+export function AdminTable({ isCto = false }: { isCto?: boolean }) {
   const [rows, setRows] = useState<Registration[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -41,6 +42,7 @@ export function AdminTable() {
   const [utmSource, setUtmSource] = useState("");
   const [utmContent, setUtmContent] = useState("");
   const [reviewedFilter, setReviewedFilter] = useState("");
+  const [showArchived, setShowArchived] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -51,6 +53,7 @@ export function AdminTable() {
     if (utmSource) params.set("utm_source", utmSource);
     if (utmContent) params.set("utm_content", utmContent);
     if (reviewedFilter) params.set("reviewed", reviewedFilter);
+    if (isCto && showArchived) params.set("archived", "true");
     try {
       const res = await fetch(`/api/admin/registrations?${params.toString()}`);
       const data = await res.json();
@@ -66,7 +69,7 @@ export function AdminTable() {
     } finally {
       setLoading(false);
     }
-  }, [q, utmSource, utmContent, reviewedFilter]);
+  }, [q, utmSource, utmContent, reviewedFilter, isCto, showArchived]);
 
   useEffect(() => {
     const t = setTimeout(load, 250); // light debounce for the search box
@@ -91,6 +94,17 @@ export function AdminTable() {
     setBusyId(null);
   }
 
+  async function toggleArchived(id: string, current: boolean) {
+    setBusyId(id);
+    await fetch(`/api/admin/registrations/${id}/archive`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ archived: !current }),
+    });
+    await load();
+    setBusyId(null);
+  }
+
   return (
     <div>
       <div className="admin__filters">
@@ -102,6 +116,12 @@ export function AdminTable() {
           <option value="false">未處理</option>
           <option value="true">已處理</option>
         </select>
+        {isCto && (
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#5f7268" }}>
+            <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} />
+            顯示已封存
+          </label>
+        )}
       </div>
 
       {loadError && <p className="admin__error">{loadError}</p>}
@@ -153,6 +173,16 @@ export function AdminTable() {
                     <button type="button" className="small" disabled={busyId === r.id} onClick={() => resend(r.id)}>
                       重寄確認信
                     </button>
+                    {isCto && (
+                      <button
+                        type="button"
+                        className="small"
+                        disabled={busyId === r.id}
+                        onClick={() => toggleArchived(r.id, r.archived)}
+                      >
+                        {r.archived ? "取消封存" : "封存"}
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

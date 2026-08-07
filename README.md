@@ -62,6 +62,7 @@ Next.js（App Router + TypeScript）全端專案：
 | Meta CAPI | 無 | 同上，邏輯已完成，未設定憑證時為 no-op |
 | 後台（`/admin`） | 不存在 | 新建功能，CTO／公關以個別帳號登入查看名單、篩選、標記處理狀態、重寄確認信 |
 | 名單匯出 | 不存在 | 匯出功能，`.xlsx` 格式；CLI（`EXPORT_TOKEN`）僅 CTO 可用，`/admin` 內建按鈕 2026/08/07 起 CTO／PR 皆可用，兩條路徑皆記錄稽核紀錄 |
+| 封存報名資料 | 不存在 | 2026/08/07 新增，CTO 專屬：可將報名資料標記為「已封存」，從預設清單與所有匯出中隱藏，但資料庫底層永不刪除，可隨時取消封存還原；PR 角色看不到此功能 |
 
 摘要：**畫面沿用原型，資料庫與後台為全新建置；追蹤／寄信等第三方整合管線已完成串接，僅因憑證尚未到位而處於安全的 no-op 狀態，不會因缺少憑證而導致錯誤或流程中斷**。待 GA4／Meta／交易信帳號取得後，僅需將對應數值填入 `.env` 即可啟用，無需修改程式碼。
 
@@ -265,7 +266,7 @@ npm run dev              # http://localhost:3000
 
 1. 前往 `/admin`，未登入將導向 `/admin/login`，輸入 email／密碼登入——**個別帳號，不再共用一組密碼**（對照文件 v3 §6.9）。
 2. 功能涵蓋：依姓名／公司／Email 搜尋、依 `utm_source`／`utm_content`／處理狀態篩選、標記已處理／未處理、對單筆資料重寄確認信；此部分 CTO／PR 兩角色皆可使用。
-3. **不提供**刪除功能。整批匯出（`/admin` 內建按鈕）**2026/08/07 起 CTO／PR 皆可用**——這是刻意放寬交接文件 §6.9「全量含個資之名單匯出由我方控管後再提供」的限制，經與你確認是直接指示（公關需要直接匯出給報名公司，不用每次都經過 CTO 轉交），非工程端自行決定；帳號管理仍僅 CTO 可進入（詳見 openspec 之 `admin-console`／`data-export` spec，`add-admin-accounts` 原始設計與 `2026-08-07-open-export-to-pr-role` 這次的放寬異動皆已歸檔）。
+3. **不提供**永久刪除功能。整批匯出（`/admin` 內建按鈕）**2026/08/07 起 CTO／PR 皆可用**——這是刻意放寬交接文件 §6.9「全量含個資之名單匯出由我方控管後再提供」的限制，經與你確認是直接指示（公關需要直接匯出給報名公司，不用每次都經過 CTO 轉交），非工程端自行決定；帳號管理仍僅 CTO 可進入（詳見 openspec 之 `admin-console`／`data-export` spec，`add-admin-accounts` 原始設計與 `2026-08-07-open-export-to-pr-role` 這次的放寬異動皆已歸檔）。**2026/08/07 新增「封存」功能（CTO 專屬，PR 完全看不到）**：可把報名資料標記為已封存，從預設清單與所有匯出（`.xlsx`／CLI）中隱藏，但資料庫底層永不刪除，可隨時於「顯示已封存」篩選畫面取消封存還原——這是你要求「刪除測試報名資料」後，比照帳號管理「停用而非刪除」的作法所做的決定（詳見 [`openspec/changes/archive/2026-08-07-add-cto-archive-registrations/`](openspec/changes/archive/2026-08-07-add-cto-archive-registrations/)）。
 4. 帳號管理（新增帳號、停用／啟用、重設密碼）僅 CTO 角色可進入，見下方「帳號管理」。
 5. 每次登入與每次匯出動作皆寫入稽核紀錄（`AdminAuditLog`），記錄操作帳號與時間。
 
@@ -314,6 +315,26 @@ npm run dev              # http://localhost:3000
 - 僅 CTO 角色看得到 `/admin` 上的「帳號管理」連結；PR 角色即使直接輸入網址，頁面層也會被導回 `/admin`（API 層同樣拒絕，非僅隱藏 UI）。
 - 可新增帳號（email／姓名／密碼／角色）、停用／啟用既有帳號、重設密碼。
 - **停用而非刪除**：帳號一旦有過登入或匯出紀錄，資料庫層會因稽核紀錄外鍵而拒絕真的刪除該帳號，這是刻意設計（保留稽核紀錄完整性），不是 bug。活動結束後比照文件 v3 §6.9「權限只綁這場活動，結束即回收」的作法是**停用**公關帳號，而非刪除。
+
+### 封存報名資料（CTO 專屬）
+
+2026/08/07 新增。你提出「想刪除現有測試報名資料」的需求後，比照帳號管理「停用而非刪除」的既有作法而非真的刪庫：
+
+- 在報名列表每一列的操作欄，CTO 角色會多看到一顆「封存」按鈕；PR 角色完全看不到這顆按鈕，也看不到下面的篩選勾選框——不是隱藏，是 API 層本身就拒絕（`PATCH /api/admin/registrations/:id/archive` 對 PR 角色回傳 403）。
+- 封存後，該筆資料立即從預設列表、`.xlsx` 匯出（`/admin` 按鈕與 CLI `EXPORT_TOKEN` 兩條路徑）中消失，但**資料庫裡的那一列本身完全沒變動、沒有任何欄位被清空**，只是多了一個 `archived = true` 標記。
+- 篩選列勾選「顯示已封存」（同樣僅 CTO 看得到）可切換檢視已封存清單，每一列有「取消封存」按鈕可隨時還原，還原後立刻重新出現在預設列表與匯出結果中。
+- **正式站清理現有測試資料**：此功能部署到 EC2 前，若要清空目前正式站資料庫裡的測試報名資料，改用下面這支命令列腳本操作（同樣是封存、不是刪除，效果與之後用 `/admin` 介面手動點「封存」完全相同，之後仍可從 `/admin` 取消封存還原）：
+
+  ```bash
+  # 先不加 --confirm，僅預覽目前資料庫裡有哪些未封存的報名資料
+  npx tsx scripts/archive-test-registrations.ts
+
+  # 確認清單無誤後，加上 --all --confirm 才會真的封存全部（尚未開放公開報名前，正式站裡通常全部都是測試資料）
+  npx tsx scripts/archive-test-registrations.ts --all --confirm
+
+  # 或只封存特定幾筆（用上面預覽列出的 id）
+  npx tsx scripts/archive-test-registrations.ts --ids=<id1>,<id2> --confirm
+  ```
 
 ### 名單匯出予 Lindy／Ragic（CTO 角色專用，`.xlsx` 格式）
 
@@ -450,4 +471,5 @@ SQLite 是單一檔案（`prisma/dev.db`），寫入的資料就存在「跑這�
 | 正式站上傳圖片全部 404（重大 bug 修復） | `done` | 2026/08/07 Lindy 回報上傳照片破圖；查出 `next start` production 模式不會動態發現執行期間新寫入 `public/` 的檔案，新增 `app/uploads/[...path]/route.ts` 直接讀硬碟繞過此限制；本機用真正的 production build 重現＋驗證修復，已 push，待 redeploy 上線後三張既有破圖應自動修復（檔案本就在硬碟上，不需重新上傳） |
 | 公關帳號開放整批匯出 Excel 權限（[`openspec/changes/archive/2026-08-07-open-export-to-pr-role/`](openspec/changes/archive/2026-08-07-open-export-to-pr-role/)） | `done` | 2026/08/07 直接指示放寬 v3 §6.9 限制；`/admin` 內建匯出按鈕 CTO／PR 皆可用，CLI（`EXPORT_TOKEN`）路徑仍僅 CTO；已用真正的 production build 驗證 PR 匯出成功且稽核紀錄正確歸屬操作帳號，帳號管理仍僅 CTO 可進入 |
 | 講者「更換照片」／夥伴「更換 Logo」按鈕樣式 | `done` | 原本用 `<label>` 包裹檔案輸入框，CSS 選擇器只認 `<button>`，畫面上看起來像純文字；改成真正的 `<button>` 觸發隱藏的檔案輸入框，已於瀏覽器驗證樣式與其他按鈕一致 |
+| 封存報名資料（CTO 專屬，[`openspec/changes/archive/2026-08-07-add-cto-archive-registrations/`](openspec/changes/archive/2026-08-07-add-cto-archive-registrations/)） | `done` | 你要求刪除測試報名資料後，比照帳號管理「停用而非刪除」的作法新增：CTO 可封存／取消封存單筆報名資料，封存後從預設清單與所有匯出隱藏、資料庫底層不刪除；PR 角色完全看不到此功能（API 層拒絕，非僅隱藏 UI）。已用真正的 production build 驗證封存／取消封存、匯出排除、PR 403、無任何程式碼路徑呼叫 `delete`；另提供 `scripts/archive-test-registrations.ts` 供你直接在 EC2 上封存正式站現有測試資料，待 redeploy 後執行 |
 | 新子網域部署 | `open` | 已記錄於「交接文件 v3 更新對照」，純部署/DNS 層級，非工程範圍 |

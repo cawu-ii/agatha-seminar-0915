@@ -46,7 +46,7 @@ export default async function AdminPage() {
           <LogoutButton />
         </div>
       </div>
-      <AdminTable />
+      <AdminTable isCto={isCto} />
     </div>
   );
 }

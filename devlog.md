@@ -631,3 +631,26 @@
 7. 測試用的 PR 帳號依「停用而非刪除」的既有慣例停用，不刪除。
 
 **同步更新：** `openspec/changes/open-export-to-pr-role/tasks.md` 全部項目勾選並補上驗證備註（含上面提到的 build cache 插曲），`openspec validate --strict` 過後歸檔為 `2026-08-07-open-export-to-pr-role`。README 多處更新：與原型 HTML 差異表、v3 更新對照表新增一列、系統資料流圖匯出節點標籤、帳號管理章節文字（拿掉「PR 無整批匯出」的舊敘述，改記錄這次的放寬與原因）、名單匯出章節說明、專案結構註解、專案進度追蹤表新增兩列（這次的權限放寬＋按鈕樣式修正）。
+
+## Phase 38 — CTO 專屬封存報名資料功能（`add-cto-archive-registrations` 落地）（2026-08-07）
+
+**起因：** 你問能不能把資料庫裡現有的報名資料刪掉，因為那些都是測試期間累積的假資料。在動手之前，先把這個要求跟既有的一條 OpenSpec 硬性限制對照了一下：`admin-console` 的原始 spec 文字寫的是「The system SHALL NOT expose any control in `/admin` that deletes or modifies a registration's core submitted data」——這是不分角色的全面禁止，不是只針對 PR，字面上連 CTO 都涵蓋在內。把這段原文貼給你看過之後，用 `AskUserQuestion` 問清楚兩個真正懸而未決的設計決策，而不是自己拍板：（1）要真的從資料庫刪除，還是比照帳號管理「停用而非刪除」改成標記隱藏；（2）這只是這次要清一次測試資料，還是要做成以後隨時能用的永久功能。你的回覆都選了比較保守、可回復的那一邊：標記為無效／隱藏，而且要做成永久功能、CTO 專屬。
+
+**做了什麼：** 開了一個新的 OpenSpec change（`add-cto-archive-registrations`），`admin-console` 那條「不提供刪除功能」的 requirement 用 MODIFIED（保留原本一字不差的標題）改寫成「不提供永久刪除，但 CTO 角色可逆向封存／取消封存」，`data-export` 也用 MODIFIED 補上「已封存的報名資料同樣要從兩條匯出路徑排除」。
+
+- **資料庫**：`Registration` model 新增 `archived Boolean @default(false)`，跟 `AdminAccount.active` 用同一套「布林旗標，不是真的刪除」的既有慣例，沒有另外發明一套帶時間戳記的設計。新增索引 `@@index([archived])`。
+- **後端**：新增 `PATCH /api/admin/registrations/:id/archive`（CTO-only，非 CTO 一律 403），只做 `prisma.registration.update` 切換 `archived` 這一個欄位，程式碼裡完全沒有出現任何 `.delete()` 呼叫。列表 API（`/api/admin/registrations`）預設只回傳 `archived: false` 的資料，帶 `?archived=true` 時（且僅限 CTO session，PR 帶這個參數會被直接忽略、不是回錯誤——刻意設計成「PR 不該知道這個篩選存在」）改回傳已封存清單。三條匯出路徑（`/admin` 內建按鈕、CLI `EXPORT_TOKEN`、`scripts/export-registrations.ts`）都加上 `where: { archived: false }`，跟這次新增的 CTO-only 限制完全獨立、互不影響——`EXPORT_TOKEN` 本來就是另一組跟 admin session 無關的憑證。
+- **前端**：`AdminTable.tsx` 新增 `isCto` prop（`app/admin/page.tsx` 已有現成的 `isCto` 常數，直接往下傳），CTO 角色會多看到一顆篩選列的「顯示已封存」勾選框，跟每一列操作欄裡的「封存／取消封存」按鈕；PR 角色兩者都完全不會被渲染出來，不是用 CSS 隱藏，是 JSX 條件式直接不輸出這段節點。
+
+**驗證方式：** 這次瀏覽器截圖工具本身沒有卡住，但為了跑得更快也更精確地覆蓋所有角色／狀態組合，改用直接打 API 的方式驗證（跟 UI 呼叫的是同一組 endpoint，等於在驗證同一段程式碼路徑，只是跳過滑鼠點擊那一層）：
+1. `npm run build` 過，新路由 `/api/admin/registrations/[id]/archive` 正確編譯成 dynamic route。
+2. 本機起一個真正的 production 伺服器（`next start -p 3010`，避開本機另一個常駐服務占用的 3003），建立一組全新的 CTO／PR 測試帳號與一筆測試報名資料。
+3. 以 CTO 身份：確認測試資料一開始在預設列表裡 → 呼叫封存 API → 確認從預設列表消失 → 確認出現在 `?archived=true` 篩選結果裡 → 下載真正的 `.xlsx` 匯出並用 `exceljs` 解析，確認除了表頭之外沒有任何資料列（`rowCount: 1`）→ 呼叫取消封存 → 確認重新出現在預設列表。
+4. 以 PR 身份：確認帶 `?archived=true` 依然拿到「一般未封存清單」而非錯誤或空清單（驗證「靜默忽略」而非「拒絕」的設計）；呼叫封存 API 回傳 403。
+5. 未登入呼叫封存 API，確認被既有 `middleware.ts` 導回 `/admin/login`（這是全域既有的 session 檢查機制，這次異動沒有改到它）。
+6. `grep -rn "registration.delete" app/ lib/ scripts/`，確認唯一命中的是新檔案裡解釋「這裡不會呼叫 delete」的註解本身，程式碼裡真的沒有任何刪除呼叫。
+7. 驗證用的測試報名資料與測試帳號驗證完後清除／停用，沒有留在資料庫裡。
+
+**正式站清理：** 你在功能實作到一半時插進來說「正式站資料，你幫我寫指令好了」，明確要一支可以直接跑的指令，而不是等這個 UI 功能部署上線後再手動點。寫了 `scripts/archive-test-registrations.ts`，跟 `export-registrations.ts` 同一種 `tsx` 腳本形式：不加任何參數是預覽模式，列出目前資料庫裡所有未封存的報名資料但不做任何變更；加 `--all --confirm` 才會真的全部封存，也支援 `--ids=<id1>,<id2> --confirm` 只封存特定幾筆。刻意做成預覽優先、需要明確 `--confirm` 才會寫入，避免在正式站資料庫上手滑；封存後的資料跟從 `/admin` 介面手動封存完全等價，之後隨時可以從「顯示已封存」畫面取消封存還原，不是不可逆的操作。這支腳本要等這次改動部署到 EC2、跑過 `npx prisma migrate deploy` 之後才能執行。
+
+**同步更新：** `openspec/changes/add-cto-archive-registrations/tasks.md` 全部項目勾選並補上驗證備註，`openspec validate --strict` 過後歸檔為 `2026-08-07-add-cto-archive-registrations`。README 更新：與原型 HTML 差異表新增一列、「不提供刪除功能」的敘述補上這次的例外與原因、新增「封存報名資料」操作說明小節（含正式站清理指令的用法）、專案進度追蹤表新增一列。

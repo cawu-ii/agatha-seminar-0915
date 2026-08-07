@@ -13,7 +13,10 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const registrations = await prisma.registration.findMany({ orderBy: { createdAt: "asc" } });
+    const registrations = await prisma.registration.findMany({
+      where: { archived: false },
+      orderBy: { createdAt: "asc" },
+    });
     const buffer = await workbookToBuffer(buildRegistrationsWorkbook(registrations));
     return new NextResponse(new Uint8Array(buffer), {
       status: 200,

@@ -11,6 +11,7 @@
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
     "export:registrations": "tsx scripts/export-registrations.ts",
+    "archive:test-registrations": "tsx scripts/archive-test-registrations.ts",
     "seed:agenda": "tsx prisma/seed-agenda.ts",
     "seed:admin": "tsx prisma/seed-admin.ts",
     "seed:speakers": "tsx prisma/seed-speakers.ts",

@@ -66,11 +66,17 @@ model Registration {
   reviewed     Boolean  @default(false)
   reviewerNote String?
 
+  // CTO-only, reversible archive (openspec: add-cto-archive-registrations) -
+  // hides a row from the default list/export without ever deleting it, same
+  // "deactivate not delete" pattern as AdminAccount.active.
+  archived Boolean @default(false)
+
   createdAt DateTime @default(now())
 
   @@index([utmSource, utmContent])
   @@index([createdAt])
   @@index([reviewed])
+  @@index([archived])
 }
 
 // PR-editable agenda (CTO handoff doc v3 §6.2 "後台 CMS" - agenda slice only,

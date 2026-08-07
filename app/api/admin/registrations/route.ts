@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getCurrentAccount } from "@/lib/auth";
 import type { Prisma } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
@@ -11,7 +12,14 @@ export async function GET(req: NextRequest) {
   const reviewed = sp.get("reviewed");
   const q = sp.get("q")?.trim();
 
+  // Archived-only view is CTO-only (openspec: add-cto-archive-registrations) -
+  // a PR session passing ?archived=true is silently ignored, not an error,
+  // since PR shouldn't even know this filter exists.
+  const me = await getCurrentAccount();
+  const showArchived = sp.get("archived") === "true" && me?.role === "CTO";
+
   const where: Prisma.RegistrationWhereInput = {
+    archived: showArchived,
     ...(utmSource ? { utmSource } : {}),
     ...(utmContent ? { utmContent } : {}),
     ...(dept ? { dept } : {}),
@@ -48,6 +56,7 @@ export async function GET(req: NextRequest) {
         emailStatus: true,
         reviewed: true,
         reviewerNote: true,
+        archived: true,
         createdAt: true,
       },
       take: 500,
