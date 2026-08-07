@@ -595,3 +595,17 @@
 **驗證方式：** 落地頁改名後瀏覽器重新整理，`getElementById('partners').querySelector('h2').textContent` 確認顯示「協辦單位」（過程中又遇到一次 Next dev server 長時間執行後的 webpack module 錯誤，跟先前幾次一樣重啟 dev server 解決，不是程式碼問題）。Gmail SMTP 那段程式碼因為沒有真實憑證可測（刻意不經手密碼），只驗證到 `npm run build` 型別檢查通過，實際能不能寄出去要等使用者自己把值填進 EC2 `.env` 後才能確認——這點在 README 裡有明確標註為 `ongoing`，不宣稱已完整驗證。
 
 **同步更新：** README（`.env` 環境變數說明表新增 `GMAIL_USER`／`GMAIL_APP_PASSWORD`、待確認事項第 4 項標記為已有替代路徑、專案進度追蹤表交易信憑證列改為 `ongoing`）、`.env.example`、`DEPLOYMENT.md`（環境變數建立指南與仍待補齊憑證表）皆已更新。沒有開新的 OpenSpec change——`transactional-email` capability 的既有需求本來就寫明「provider 透過設定值可替換（e.g. `EMAIL_PROVIDER`）」，新增 `gmail` 這個選項是既有需求範圍內的實作細節，不是新的或變更的行為契約。
+
+## Phase 36 — 修正正式站上傳圖片全部 404 的關鍵 bug（2026-08-07）
+
+**做了什麼：** Lindy 回報上傳新圖片後畫面顯示破圖。先排除了一個岔路——她同時也貼了 ChatGPT 針對 `GtmLoader.tsx` 給的建議（懷疑 `grantTrackingConsent()` 沒有送出 `agatha:consent-granted` 事件，導致 GTM 要重新整理才會載入）。實際核對 `components/ConsentBanner.tsx` 的原始碼，事件本來就有正確送出（`accept()` 裡 `grantTrackingConsent()` 之後緊接著 `window.dispatchEvent(new Event(CONSENT_GRANTED_EVENT))`），而且今天稍早我已經直接連正式站實測過同一頁不重整、按下同意後 GTM 立即載入——GPT 是因為只看到 `GtmLoader.tsx` 一個檔案、沒看到 `ConsentBanner.tsx`，才猜錯了根因。這部分沒有動任何程式碼，只是確認診斷是錯的。
+
+- **真正的問題**：直接連正式站檢查 3 張新上傳圖片（2 張講者照片、1 張夥伴 Logo）的網址，全部回 404，但回應標頭裡有 `x-nextjs-cache: HIT`、`x-nextjs-prerender: 1` 這種 RSC／頁面渲染才會有的標頭——代表 Next.js 把這個請求當成「路由不存在」在處理並快取下來，不是單純的靜態檔案 404。
+- **逐步排除**：先請你 SSH 上 EC2 確認檔案實際在不在硬碟上（`ls` 確認在，大小正常，不是壞檔）；再確認機器上只有一份專案目錄、pm2 的工作目錄也正確（排除「多目錄搞混」的可能）；再用 `curl` 直接打 `localhost:3003` 跳過所有可能的反向代理，結果一樣 404（排除「代理層設定漏掉 `/uploads/`」的可能）；查了 `next.config.mjs` 確認沒有設定 `output: "standalone"`（排除「standalone 模式複製了一份舊的 public 快照」的可能）。
+- **關鍵測試釘死根因**：請你 `pm2 restart agatha-seminar` 後重新 `curl` 同一個檔案，結果變成 200。**這證實了 Next.js production 模式（`next start`）對 `public/` 資料夾的靜態檔案清單是在伺服器啟動當下建立的，執行期間才被寫入的新檔案不會被動態發現，會被當成「路由不存在」而 404，還被快取住**——這代表往後每次上傳新的講者照片／夥伴 Logo／Banner，在下一次重啟伺服器之前都會是破圖，是這個專案檔案上傳功能的一個結構性問題，不是這次上傳的個案，也不是我今天稍早在本機用 `npm run dev` 一直測不出來的原因——dev 模式本來就是即時讀硬碟，不會有這個問題，只有 production 模式才會踩到。
+
+**修法：** 新增 `app/uploads/[...path]/route.ts`，用一支 Route Handler 直接讀硬碟回傳檔案內容，取代依賴 Next.js 內建的 `public/` 靜態伺服機制。這支路由每次請求都用 `readFile()` 即時讀取當下的硬碟內容，不會有「伺服器啟動時的快照」這個問題。有做路徑穿越防護（拒絕含 `..` 或空位元組的路徑片段，且解析後路徑必須仍在 `public/uploads/` 底下）與副檔名白名單（僅 jpg/jpeg/png/webp，其餘一律 400）。
+
+**驗證方式：** 這個 bug 只有 production 模式才會重現，本機一直用 `npm run dev` 測試當然測不出來，所以這次刻意在本機跑一次**真正的 production build**（`npm run build && npm run start`，確保跟正式站一樣、`public/uploads/` 在 build 當下是空的）：伺服器啟動後，用 API 建一個測試講者、上傳一張照片，**不重啟伺服器**、立刻重新請求該圖片網址，確認回傳 200 且 `Content-Type: image/jpeg`（修正前這一步在 production 模式下會是 404，這正是 Lindy 回報的那個情境）。測試講者與圖片事後皆已刪除清理乾淨。正式站那 3 張破圖，程式碼部署＋重啟後應該會直接自動修好（檔案本來就好好躺在硬碟上，不需要重新上傳）——這點會在部署後另外請你確認一次。
+
+**同步更新：** 本則 Phase 36 devlog。沒有開新的 OpenSpec change——`banner-cms`／`speakers-cms`／`partners-cms` 的既有規格本來就寫「上傳後圖片會出現在落地頁」，這次是修正一個讓這條既有規格失效的環境層級 bug，不是改變規格本身要求的行為。
