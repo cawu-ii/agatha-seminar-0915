@@ -49,7 +49,8 @@ cp .env.example .env
 | `INITIAL_CTO_EMAIL` / `INITIAL_CTO_PASSWORD` | 填你要用來登入的 email 與一組**正式強度**的密碼（不要用 `.env.example` 裡的 `change-me-then-forget-it` 佔位字串）。這兩個變數只在 `npm run seed:admin` 執行的當下被讀取一次，建立完第一個 CTO 帳號後就不再被程式讀取，但建議帳號建立成功、確認能登入後，把 `.env` 裡這兩行刪掉或清空，避免密碼明文長期留在檔案裡 |
 | `NEXT_PUBLIC_GTM_ID` / `NEXT_PUBLIC_GA4_ID` | **已定案（2026/08/06）**：`NEXT_PUBLIC_GTM_ID` 填 `GTM-M6P5QTRM`（湧現／Lindy 自建容器）；`NEXT_PUBLIC_GA4_ID` 填 `G-C2D5DC3DLS`（僅供備忘，程式碼不直接讀取，實際由 GTM 容器內的 Tag 管理）。若部署當下這兩個值又變動，以最新交接文件為準，留空也安全（不影響運作，只是不注入追蹤腳本） |
 | `META_CAPI_TOKEN` / `META_PIXEL_ID` | 同上，留空即為安全的 no-op |
-| `EMAIL_PROVIDER` / `RESEND_API_KEY` / `EMAIL_FROM` | 若交易信帳號還沒到位，`EMAIL_PROVIDER` 留 `none`，程式只會 log 不會寄信、也不會報錯 |
+| `EMAIL_PROVIDER` / `RESEND_API_KEY` / `EMAIL_FROM` | Resend 路徑，需寄件網域 DNS 驗證。若未使用，`EMAIL_PROVIDER` 留 `none`，程式只會 log 不會寄信、也不會報錯 |
+| `GMAIL_USER` / `GMAIL_APP_PASSWORD` | **2026/08/07 起可用的替代路徑**：`EMAIL_PROVIDER=gmail`，`GMAIL_USER` 填 `service@emergence.today`，`GMAIL_APP_PASSWORD` 填 Lindy 從 [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords) 產生的應用程式密碼（16 碼小寫字母、4 碼一組，**不是**帳號登入密碼——格式不對會直接寄信失敗）。這條路徑不需要碰 DNS，比 Resend 快上線 |
 | `RAGIC_API_TOKEN` / `RAGIC_BASE_URL` | 目前是 no-op stub，留空即可 |
 
 **檢查方式**：`.env` 建好之後，`cat .env`（或用編輯器打開）逐行核對，尤其確認 `SESSION_SECRET` 和 `EXPORT_TOKEN` 不是空字串、不是 `.env.example` 裡的預設佔位字串——這兩個一旦用預設值上線，等於誰都能偽造登入 session 或匯出權杖。
@@ -207,7 +208,7 @@ pm2 restart agatha-seminar
 |---|---|
 | `NEXT_PUBLIC_GTM_ID` / `NEXT_PUBLIC_GA4_ID` | ✅ 已提供（`GTM-M6P5QTRM` / `G-C2D5DC3DLS`），部署時直接填入即可 |
 | `META_CAPI_TOKEN` / `META_PIXEL_ID` | 鼎東（公關公司技術團隊） |
-| `RESEND_API_KEY`（含寄件網域 SPF/DKIM/DMARC 設定） | 公司（BD／財務申辦交易信帳號） |
+| `GMAIL_USER` / `GMAIL_APP_PASSWORD` | ⏳ 待確認格式：Lindy 已提供一組應用程式密碼，待你核對格式（16 碼小寫字母、4 碼一組）後填入即可，不再依賴 `RESEND_API_KEY`／DNS |
 | `RAGIC_API_TOKEN` / `RAGIC_BASE_URL` | 不需要——交接文件明確「不串接 Ragic」，這組留空即可，永久 no-op |
 
 詳細對照見 [README.md](README.md) 的「`.env` 環境變數說明」一節。

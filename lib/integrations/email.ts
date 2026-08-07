@@ -40,6 +40,26 @@ export async function sendConfirmationEmail(registrationId: string): Promise<voi
         text,
       });
       await markEmailStatus(reg.id, "SENT");
+    } else if (provider === "gmail" && process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
+      // Sends through Gmail's own SMTP servers using an account App Password
+      // (myaccount.google.com/apppasswords, 16 lowercase chars in 4 groups
+      // of 4 - not the account login password). No DNS/SPF/DKIM setup is
+      // needed since Gmail's own servers are already the authorized sender
+      // for their own domain - this sidesteps the Resend domain-verification
+      // path entirely for cases where the confirmation-email mailbox already
+      // is a working Gmail account (see README .env table).
+      const nodemailer = await import("nodemailer");
+      const transporter = nodemailer.createTransport({
+        service: "gmail",
+        auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASSWORD },
+      });
+      await transporter.sendMail({
+        from: process.env.EMAIL_FROM ?? `Agatha 湧現智庫 <${process.env.GMAIL_USER}>`,
+        to: reg.email,
+        subject,
+        text,
+      });
+      await markEmailStatus(reg.id, "SENT");
     } else {
       // eslint-disable-next-line no-console
       console.log(

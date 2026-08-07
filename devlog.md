@@ -583,3 +583,15 @@
 8. 未登入直接呼叫兩支新上傳路由，確認都被既有的全域 `middleware.ts` 攔截、307 導回 `/admin/login`；`grep -n "CTO"` 掃過兩支路由與兩個後台元件，確認都沒有角色限制，PR／CTO 權限對等。
 
 **同步更新：** `openspec/changes/add-speaker-partner-upload/tasks.md` 全部項目勾選並補上驗證備註與過程中發現的兩個規劃外調整（`Partner.logoUrl` 改 nullable、DELETE 補檔案清除），`openspec validate --strict` 過後歸檔為 `2026-08-07-add-speaker-partner-upload`。README 多處更新：內容管理章節（講者／夥伴段落整段重寫，含上傳規格與分類說明）、v3 更新對照表新增一列、專案結構（新路由）、專案進度追蹤表新增一列。測試期間產生的 `.test-cookie`／`.test-speaker-id`／`.test-partner-id` 暫存檔已清除，不進版控。
+
+## Phase 35 — 落地頁區塊改名＋確認信改走 Gmail SMTP 路徑（2026-08-07）
+
+**做了什麼：** 兩件小事，都是當天稍早討論的延續。
+
+- **「合作夥伴」改名「協辦單位」**：落地頁區塊標題跟後台已經在用的「協辦單位管理」分組名稱對齊，單純文案一致性調整，不涉及資料結構或行為。
+- **確認信新增 Gmail SMTP 寄信路徑**：稍早討論到 `emergence.today` 不是本公司持有的網域，Resend 網域驗證需要的 DNS 權限有不確定性；但 `service@emergence.today` 本身已經是一個平常在用的 Gmail 帳號，於是改走「直接用 Gmail 自己的 SMTP 伺服器寄信」這條路——完全不用碰 DNS，因為 Google 自己的伺服器本來就已經是 `gmail.com` 這個網域的合法寄件者。新增 `nodemailer` 依賴，`lib/integrations/email.ts` 加了一個 `EMAIL_PROVIDER=gmail` 分支，用 `GMAIL_USER`／`GMAIL_APP_PASSWORD` 兩個新環境變數透過 `nodemailer.createTransport({service:"gmail",...})` 寄信，跟原本的 `resend` 分支並列，`none` 時的 log-only 行為不受影響。
+- **格式把關，不經手實際密碼**：Lindy 先給的第一組密碼格式不對——Google 應用程式密碼固定是 16 碼小寫字母、4 碼一組（例如 `abcd efgh ijkl mnop`），第一組看起來是一般帳號登入密碼（有大寫、數字、13 碼），若信箱有開兩步驟驗證會直接寄信失敗，且拿主密碼給第三方系統本身也不是好的安全實踐。指出這點後 Lindy 重新提供了格式正確的一組。**這兩組密碼本身完全沒有寫進任何檔案、程式碼或 commit**——使用者直接在對話裡貼了兩次，但這類密碼屬於不能由我代為輸入到系統裡的東西（比照信用卡號、API Key 同一類的處理原則），程式碼準備好之後，實際的環境變數值需要使用者自己上 EC2 手動填入 `.env`，我這邊全程不觸碰真實憑證值，連歷史紀錄裡也不留字面值。
+
+**驗證方式：** 落地頁改名後瀏覽器重新整理，`getElementById('partners').querySelector('h2').textContent` 確認顯示「協辦單位」（過程中又遇到一次 Next dev server 長時間執行後的 webpack module 錯誤，跟先前幾次一樣重啟 dev server 解決，不是程式碼問題）。Gmail SMTP 那段程式碼因為沒有真實憑證可測（刻意不經手密碼），只驗證到 `npm run build` 型別檢查通過，實際能不能寄出去要等使用者自己把值填進 EC2 `.env` 後才能確認——這點在 README 裡有明確標註為 `ongoing`，不宣稱已完整驗證。
+
+**同步更新：** README（`.env` 環境變數說明表新增 `GMAIL_USER`／`GMAIL_APP_PASSWORD`、待確認事項第 4 項標記為已有替代路徑、專案進度追蹤表交易信憑證列改為 `ongoing`）、`.env.example`、`DEPLOYMENT.md`（環境變數建立指南與仍待補齊憑證表）皆已更新。沒有開新的 OpenSpec change——`transactional-email` capability 的既有需求本來就寫明「provider 透過設定值可替換（e.g. `EMAIL_PROVIDER`）」，新增 `gmail` 這個選項是既有需求範圍內的實作細節，不是新的或變更的行為契約。
