@@ -1,15 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
+import { unlink } from "node:fs/promises";
+import path from "node:path";
 import { prisma } from "@/lib/prisma";
+
+const UPLOAD_PREFIX = "/uploads/speakers";
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const body = await req.json().catch(() => ({}));
 
+  // photoUrl is intentionally not accepted here - replacing it goes through
+  // POST /api/admin/speakers/:id/upload (openspec: add-speaker-partner-upload).
   const data: {
     name?: string;
     title?: string;
     bio?: string;
-    photoUrl?: string | null;
     confirmed?: boolean;
   } = {};
 
@@ -25,9 +30,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
   if (typeof body.bio === "string") {
     data.bio = body.bio.trim();
-  }
-  if (typeof body.photoUrl === "string") {
-    data.photoUrl = body.photoUrl.trim() || null;
   }
   if (typeof body.confirmed === "boolean") {
     data.confirmed = body.confirmed;
@@ -46,7 +48,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   try {
-    await prisma.speaker.delete({ where: { id } });
+    const deleted = await prisma.speaker.delete({ where: { id } });
+    // Clean up the uploaded photo file too, not just the DB row - otherwise
+    // deleting speakers leaks files in public/uploads/speakers/ forever
+    // (openspec: add-speaker-partner-upload).
+    if (deleted.photoUrl?.startsWith(UPLOAD_PREFIX)) {
+      await unlink(path.join(process.cwd(), "public", deleted.photoUrl)).catch(() => {});
+    }
     return NextResponse.json({ ok: true });
   } catch (err) {
     // eslint-disable-next-line no-console

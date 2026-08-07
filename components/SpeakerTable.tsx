@@ -12,13 +12,16 @@ interface Speaker {
   sortOrder: number;
 }
 
-const EMPTY_FORM = { name: "", title: "", bio: "", photoUrl: "", confirmed: true };
+const EMPTY_FORM = { name: "", title: "", bio: "", confirmed: true };
 
 export function SpeakerTable() {
   const [items, setItems] = useState<Speaker[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const [uploadErrorId, setUploadErrorId] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState(EMPTY_FORM);
   const [newForm, setNewForm] = useState(EMPTY_FORM);
@@ -114,7 +117,6 @@ export function SpeakerTable() {
       name: item.name,
       title: item.title,
       bio: item.bio,
-      photoUrl: item.photoUrl ?? "",
       confirmed: item.confirmed,
     });
     setFormError(null);
@@ -147,6 +149,23 @@ export function SpeakerTable() {
     await fetch(`/api/admin/speakers/${id}`, { method: "DELETE" });
     await load(true);
     setBusyId(null);
+  }
+
+  async function uploadPhoto(id: string, file: File) {
+    setUploadingId(id);
+    setUploadErrorId(null);
+    setUploadError(null);
+    const form = new FormData();
+    form.append("file", file);
+    const res = await fetch(`/api/admin/speakers/${id}/upload`, { method: "POST", body: form });
+    const data = await res.json();
+    setUploadingId(null);
+    if (!res.ok) {
+      setUploadErrorId(id);
+      setUploadError(data.error ?? "上傳失敗");
+      return;
+    }
+    await load(true);
   }
 
   return (
@@ -188,13 +207,6 @@ export function SpeakerTable() {
                           placeholder="職稱"
                           style={{ width: 220 }}
                         />
-                        <input
-                          className="finput"
-                          value={editForm.photoUrl}
-                          onChange={(e) => setEditForm({ ...editForm, photoUrl: e.target.value })}
-                          placeholder="照片網址（留空顯示待提供）"
-                          style={{ flex: 1, minWidth: 220 }}
-                        />
                         <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 13 }}>
                           <input
                             type="checkbox"
@@ -235,7 +247,34 @@ export function SpeakerTable() {
                     </td>
                     <td>{item.name}</td>
                     <td>{item.title}</td>
-                    <td>{item.photoUrl ? "有" : "待提供"}</td>
+                    <td>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                        <span>
+                          {item.photoUrl ? (
+                            <a href={item.photoUrl} target="_blank" rel="noreferrer">
+                              已上傳
+                            </a>
+                          ) : (
+                            "待提供"
+                          )}
+                        </span>
+                        <label className="small" style={{ cursor: "pointer", width: "fit-content" }}>
+                          {uploadingId === item.id ? "上傳中…" : item.photoUrl ? "更換照片" : "上傳照片"}
+                          <input
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp"
+                            style={{ display: "none" }}
+                            disabled={uploadingId === item.id}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              e.target.value = "";
+                              if (file) uploadPhoto(item.id, file);
+                            }}
+                          />
+                        </label>
+                        {uploadErrorId === item.id && <p className="admin__error">{uploadError}</p>}
+                      </div>
+                    </td>
                     <td>{item.confirmed ? "是" : "待確認"}</td>
                     <td style={{ display: "flex", gap: 6 }}>
                       <button type="button" className="small" disabled={busyId === item.id} onClick={() => startEdit(item)}>
@@ -256,6 +295,9 @@ export function SpeakerTable() {
 
       <div className="glass" style={{ padding: 20, marginTop: 24, maxWidth: 640 }}>
         <h3 style={{ color: "#14231b", fontSize: 16, marginBottom: 12 }}>新增講者</h3>
+        <p style={{ color: "#5f7268", fontSize: 13, marginBottom: 10 }}>
+          先填基本資料建立講者，建立後可在上方列表為該講者上傳照片（需至少 520×520px）。
+        </p>
         <form onSubmit={createItem} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <input
             value={newForm.name}
@@ -268,12 +310,6 @@ export function SpeakerTable() {
             value={newForm.title}
             onChange={(e) => setNewForm({ ...newForm, title: e.target.value })}
             placeholder="職稱"
-          />
-          <input
-            className="finput"
-            value={newForm.photoUrl}
-            onChange={(e) => setNewForm({ ...newForm, photoUrl: e.target.value })}
-            placeholder="照片網址（留空顯示待提供）"
           />
           <textarea
             className="finput"

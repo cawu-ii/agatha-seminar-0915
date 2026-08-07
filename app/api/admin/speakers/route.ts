@@ -20,7 +20,6 @@ export async function POST(req: NextRequest) {
   const name = typeof body.name === "string" ? body.name.trim() : "";
   const title = typeof body.title === "string" ? body.title.trim() : "";
   const bio = typeof body.bio === "string" ? body.bio.trim() : "";
-  const photoUrl = typeof body.photoUrl === "string" && body.photoUrl.trim() ? body.photoUrl.trim() : null;
   const confirmed = body.confirmed !== false;
 
   if (!name || !title) {
@@ -31,8 +30,10 @@ export async function POST(req: NextRequest) {
     const last = await prisma.speaker.findFirst({ orderBy: { sortOrder: "desc" } });
     const sortOrder = (last?.sortOrder ?? 0) + 10;
 
+    // photoUrl starts null - it's set by POST /api/admin/speakers/:id/upload,
+    // not pasted here (openspec: add-speaker-partner-upload).
     const created = await prisma.speaker.create({
-      data: { name, title, bio, photoUrl, confirmed, sortOrder },
+      data: { name, title, bio, photoUrl: null, confirmed, sortOrder },
     });
     return NextResponse.json({ speaker: created }, { status: 200 });
   } catch (err) {

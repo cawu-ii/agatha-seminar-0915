@@ -1,8 +1,5 @@
-# partners-cms Specification
+## MODIFIED Requirements
 
-## Purpose
-TBD - created by archiving change add-content-cms. Update Purpose after archive.
-## Requirements
 ### Requirement: Landing page renders partners from stored data
 The system SHALL render two separate sections on `/seminar/0915` from stored partner records, ordered within each section by their configured sort order: a **主辦單位** section showing only partners categorized `HOST`, and a **合作夥伴** section (the `PartnerWall` logo grid and its detail modal) showing only partners categorized `COORGANIZER`.
 
@@ -40,28 +37,9 @@ The system SHALL let an authenticated `/admin` session edit an existing partner'
 - **WHEN** an admin uploads a new logo for a partner that already has one
 - **THEN** the new logo replaces the old one on the landing page on next load, and the previously stored file is removed
 
-### Requirement: Admin can delete a partner
-The system SHALL let an authenticated `/admin` session delete a partner.
-
-#### Scenario: Remove an ended partnership
-- **WHEN** an admin deletes a partner
-- **THEN** it no longer appears in the admin list or on the landing page
-
 ### Requirement: Admin can reorder partners
 The system SHALL let an authenticated `/admin` session change the display order of partners within their own category (`HOST` or `COORGANIZER`); reordering does not move a partner across categories.
 
 #### Scenario: Move a partner earlier within its category
 - **WHEN** an admin moves a partner up within its category's list
 - **THEN** it renders before the partner it was moved past, both in the admin list and in that category's section on the landing page, with no effect on the other category's order
-
-### Requirement: Partner management requires the same admin authentication as the rest of /admin
-The system SHALL require a valid admin session (CTO or PR) for all partner create/edit/delete/reorder actions, with no additional role restriction beyond a valid session.
-
-#### Scenario: No session
-- **WHEN** a request to create, edit, delete, or reorder a partner is made without a valid admin session
-- **THEN** the request is rejected and no change is made
-
-#### Scenario: PR-role session
-- **WHEN** a PR-role session manages partners
-- **THEN** the action succeeds the same as it would for a CTO-role session
-

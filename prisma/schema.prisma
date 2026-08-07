@@ -128,8 +128,10 @@ model AdminAuditLog {
 
 // PR/CTO-editable content blocks (CTO handoff doc v3 §6.2 "後台 CMS" -
 // speakers/partners/highlights slice, see openspec/changes/add-content-cms).
-// Same shape/pattern as AgendaItem: explicit sortOrder, plain-text fields,
-// no file upload yet - photoUrl/logoUrl are pasted URLs (see design.md).
+// Same shape/pattern as AgendaItem: explicit sortOrder, plain-text fields.
+// photoUrl/logoUrl are now populated by file upload (see
+// openspec/changes/add-speaker-partner-upload) but stay plain URL strings -
+// the upload route writes to public/uploads/ and stores the resulting path.
 model Speaker {
   id        String   @id @default(uuid())
   name      String
@@ -144,16 +146,23 @@ model Speaker {
   @@index([sortOrder])
 }
 
+enum PartnerCategory {
+  HOST
+  COORGANIZER
+}
+
 model Partner {
-  id          String   @id @default(uuid())
+  id          String          @id @default(uuid())
   name        String
   description String
-  logoUrl     String
+  logoUrl     String?
+  category    PartnerCategory @default(COORGANIZER)
   sortOrder   Int
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
 
   @@index([sortOrder])
+  @@index([category])
 }
 
 model Highlight {

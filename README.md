@@ -83,8 +83,9 @@ Next.js（App Router + TypeScript）全端專案：
 | UTM 新增「合作夥伴」來源、不分波段 | `utm_source`/`utm_content` 本為自由字串，非固定選項 | ✅ 已相容，無需改動 |
 | CMS 範圍擴及 Banner 上傳、活動資訊 | v3 §6.2；桌機／手機 Banner 圖片上傳（精確尺寸校驗）＋活動資訊四張卡片後台編輯 | ✅ **已實作並驗證**（[`add-banner-event-info-cms`](openspec/changes/archive/2026-08-06-add-banner-event-info-cms/)，見下方「內容管理」） |
 | **GTM／GA4 憑證到位，GA4 主轉換事件改為 GTM 端設定** | 0805/0806 文件更新：GTM 容器＋GA4 ID 已提供，內部 Tag／Trigger 改由鼎東維護；`generate_lead` 取代原規劃的 `registration_submit` 自訂事件（GTM 容器代碼於 2026/08/06 下午定案為湧現／Lindy 自建之 `GTM-M6P5QTRM`，取代上午暫緩的 `GTM-M583KSV7`） | ✅ **已實作並驗證**（[`update-tracking-integration`](openspec/changes/archive/2026-08-06-update-tracking-integration/)，見下方「追蹤事件字典」） |
+| **講者照片／夥伴 Logo 改為檔案上傳；夥伴拆分主辦／協辦單位** | 2026/08/06 QA（Lindy）測試回報：講者、夥伴需要真正的檔案上傳（不再貼網址）；夥伴需拆分「主辦單位」（今晧實業、湧現智庫）與「協辦單位」，落地頁對應拆成兩個區塊 | ✅ **已實作並驗證**（[`add-speaker-partner-upload`](openspec/changes/archive/2026-08-07-add-speaker-partner-upload/)，見上方「內容管理」） |
 
-**目前狀態：議程管理、個別帳號、Excel 匯出、講者／夥伴／亮點 CMS、表單選項清單 CMS、Banner 上傳／活動資訊 CMS 七項已完成並歸檔；新子網域部署尚未動工**，避免一次把不相關的能力全部混進同一個 change。
+**目前狀態：議程管理、個別帳號、Excel 匯出、講者／夥伴／亮點 CMS、表單選項清單 CMS、Banner 上傳／活動資訊 CMS、講者夥伴檔案上傳與夥伴分類 八項已完成並歸檔；新子網域部署尚未動工**，避免一次把不相關的能力全部混進同一個 change。
 
 ## 角色與分工
 
@@ -167,7 +168,8 @@ seminar_apply/
 │     └─ admin/
 │        ├─ login/route.ts · logout/route.ts
 │        ├─ registrations/route.ts · registrations/[id]/review/route.ts · registrations/[id]/resend/route.ts
-│        ├─ agenda/route.ts · speakers/route.ts · partners/route.ts · highlights/route.ts（各自 + [id]/route.ts + [id]/move/route.ts）
+│        ├─ agenda/route.ts · speakers/route.ts · partners/route.ts · highlights/route.ts（各自 + [id]/route.ts + reorder/route.ts）
+│        ├─ speakers/[id]/upload/route.ts · partners/[id]/upload/route.ts  # 🔵 講者照片／夥伴 Logo 檔案上傳，沿用 Banner 上傳模式
 │        ├─ form-options/route.ts · form-options/[field]/route.ts（+ [id]/route.ts + [id]/move/route.ts）  # 🔵 7 個表單欄位共用同一組 CRUD
 │        ├─ banner/route.ts                     # 🔵 GET 目前 Banner／POST 上傳（桌機／手機分開，含尺寸校驗）
 │        ├─ event-info/route.ts · event-info/[field]/route.ts  # 🔵 GET 四張卡片／PATCH 單張（無 POST/DELETE，固定 4 格）
@@ -182,7 +184,7 @@ seminar_apply/
 │  ├─ registration-schema.ts                    # `buildRegistrationSchema(options)`，改為依當下選項清單動態建立
 │  └─ integrations/                             # 🟠🩷🟣 email.ts · meta-capi.ts · ragic.ts（無憑證即 no-op + log）
 ├─ prisma/
-│  ├─ schema.prisma                             # Registration、AgendaItem、AdminAccount、AdminAuditLog、Speaker、Partner、Highlight、FormOption、Banner、EventInfo model
+│  ├─ schema.prisma                             # Registration、AgendaItem、AdminAccount、AdminAuditLog、Speaker、Partner（含 PartnerCategory: HOST/COORGANIZER）、Highlight、FormOption、Banner、EventInfo model
 │  ├─ seed-agenda.ts · seed-speakers.ts · seed-partners.ts · seed-highlights.ts · seed-form-options.ts · seed-event-info.ts  # 內容種子資料，各自對應一個 npm script，只需手動跑一次（Banner 無種子，起始為空）
 │  └─ seed-admin.ts                             # 建立第一個 CTO 帳號（`npm run seed:admin`，全新環境必跑）
 ├─ scripts/export-registrations.ts              # 🔵 CTO 專用匯出腳本，輸出 .xlsx
@@ -279,11 +281,11 @@ npm run dev              # http://localhost:3000
 
 比照議程管理的作法，落地頁的講者陣容、合作夥伴牆、活動亮點卡片同樣可由後台管理，CTO／PR 皆可操作：
 
-- **講者管理**：姓名、職稱、簡介、照片網址（可留空）、是否已確認。未確認的講者會在落地頁顯示「待確認」標記；已確認但尚未提供照片的講者顯示「照片待提供」——這對應原設計稿裡的兩種不同狀態，不是同一件事。
-- **合作夥伴管理**：名稱、Logo 網址、點擊 Logo 後彈出的介紹文字。
+- **講者管理**：姓名、職稱、簡介、照片（檔案上傳，可留空）、是否已確認。未確認的講者會在落地頁顯示「待確認」標記；已確認但尚未上傳照片的講者顯示「照片待提供」——這對應原設計稿裡的兩種不同狀態，不是同一件事。照片需**至少 520×520px**（下限，非精確比對，見下）。
+- **合作夥伴管理**：名稱、Logo（檔案上傳，可留空）、點擊 Logo 後彈出的介紹文字，**外加「主辦單位／協辦單位」分類**（2026/08/06 QA 回報新增）。後台畫面拆成「主辦單位管理」「協辦單位管理」兩個分組表格，分類可隨時編輯調整，排序各自獨立（拖曳主辦單位不會影響協辦單位順序，反之亦然）。落地頁對應拆成「主辦單位」（固定為今晧實業、湧現智庫）與「合作夥伴」（其餘協辦單位）兩個獨立區塊。Logo 需為 **PNG 格式、寬度至少 800px**（僅驗證格式與寬度，不檢查是否真的透明背景，透明背景由上傳者自行確保）。
 - **活動亮點管理**：標題與內容，落地頁會自動依序標上「亮點一」「亮點二」……不需要自己輸入編號。
-- 三者皆支援上下箭頭排序，儲存後落地頁下次載入即反映（與議程同一套機制）。
-- **講者／合作夥伴的圖片／Logo 目前只能貼網址，還沒有檔案上傳功能**：這兩個區塊目前仍需工程協助把圖片放到 `/public/images/` 後提供路徑，或使用外部圖床連結。本專案第一個真正的檔案上傳功能已隨 Banner 上傳一併完成（見下一節），未來若要擴及講者／夥伴 Logo，可比照同一套上傳基礎建設實作。
+- 三者皆支援拖曳排序，儲存後落地頁下次載入即反映（與議程同一套機制）。
+- **講者照片／合作夥伴 Logo 皆為真正的檔案上傳**（2026/08/07 起，延續 Banner 上傳的同一套基礎建設：`image-size` 尺寸校驗、`public/uploads/` 本機磁碟儲存、換圖即刪舊檔、後台不做預覽），不再是貼網址；新增講者／夥伴時先填文字欄位建立資料，建立後在列表對應那一列上傳照片／Logo。刪除講者／夥伴時，已上傳的檔案也會一併從磁碟清除，不會留下孤兒檔案。
 
 ### 內容管理：Hero Banner／活動資訊（`/admin/banner`、`/admin/event-info`）
 
@@ -441,4 +443,5 @@ SQLite 是單一檔案（`prisma/dev.db`），寫入的資料就存在「跑這�
 | 講者／夥伴／亮點 CMS（`/admin/speakers`、`/admin/partners`、`/admin/highlights`） | `done` | 對照交接文件 v3 §6.2；OpenSpec 規格＋實作皆完成，CTO／PR 皆可操作，已於瀏覽器驗證 CRUD／排序，`npm run build` 通過；圖片僅支援貼網址，尚無上傳功能（見下方） |
 | 表單選項清單 CMS（`/admin/form-options`） | `done` | 對照交接文件 v3 §6.2；範圍限定選項清單（非完整表單建構器，已與你確認）；報名驗證 schema 改為依當下選項動態建立並已驗證與落地頁同步、拒絕已刪除的舊選項值、最後一個選項不可刪除 |
 | Banner 上傳／活動資訊 CMS（[`openspec/changes/archive/2026-08-06-add-banner-event-info-cms/`](openspec/changes/archive/2026-08-06-add-banner-event-info-cms/)） | `done` | 對照交接文件 v3 §6.2；OpenSpec 規格＋實作皆完成，`/admin/banner`（桌機 2560×1440／手機 1080×1350 精確尺寸校驗、換圖即刪舊檔）與 `/admin/event-info`（固定 4 張卡片編輯）已於瀏覽器驗證，`npm run build` 通過。過程中發現並修正一個 CSS specificity 缺陷（桌機／手機圖片切換選擇器優先度不足，兩張圖曾同時顯示），已修正並重新驗證兩種視窗寬度 |
+| 講者照片／夥伴 Logo 檔案上傳＋夥伴主辦/協辦分類（[`openspec/changes/archive/2026-08-07-add-speaker-partner-upload/`](openspec/changes/archive/2026-08-07-add-speaker-partner-upload/)） | `done` | 2026/08/06 QA（Lindy）回報；講者照片≥520×520、夥伴 Logo PNG≥800px 寬，皆為檔案上傳（沿用 Banner 上傳基礎建設）；夥伴拆分「主辦單位」（今晧實業、湧現智庫，固定）／「協辦單位」，落地頁與後台皆拆成兩個區塊，排序各自獨立。過程中發現並修正一個既有缺口：刪除講者／夥伴時原本沒有清除已上傳的檔案，已補上，重新驗證刪除後磁碟無殘留 |
 | 新子網域部署 | `open` | 已記錄於「交接文件 v3 更新對照」，純部署/DNS 層級，非工程範圍 |

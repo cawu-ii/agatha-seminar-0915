@@ -2,21 +2,32 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+type Category = "HOST" | "COORGANIZER";
+
 interface Partner {
   id: string;
   name: string;
   description: string;
-  logoUrl: string;
+  logoUrl: string | null;
+  category: Category;
   sortOrder: number;
 }
 
-const EMPTY_FORM = { name: "", description: "", logoUrl: "" };
+const EMPTY_FORM = { name: "", description: "", category: "COORGANIZER" as Category };
+
+const GROUPS: Array<{ key: Category; label: string }> = [
+  { key: "HOST", label: "主辦單位" },
+  { key: "COORGANIZER", label: "協辦單位" },
+];
 
 export function PartnerTable() {
   const [items, setItems] = useState<Partner[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const [uploadErrorId, setUploadErrorId] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState(EMPTY_FORM);
   const [newForm, setNewForm] = useState(EMPTY_FORM);
@@ -24,8 +35,6 @@ export function PartnerTable() {
   const [dragId, setDragId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
 
-  // silent=true skips the loading flash (used after create/edit/delete/reorder,
-  // where we already have data on screen and don't want the table to blank out).
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     setLoadError(null);
@@ -50,15 +59,19 @@ export function PartnerTable() {
     load();
   }, [load]);
 
+  // Reordering stays scoped within a category (openspec: add-speaker-partner-upload) -
+  // groupItems is whichever of the two on-screen lists the drag happened in.
   const persistReorder = useCallback(
-    async (fromId: string, toId: string) => {
-      const fromIdx = items.findIndex((i) => i.id === fromId);
-      const toIdx = items.findIndex((i) => i.id === toId);
+    async (groupItems: Partner[], fromId: string, toId: string) => {
+      const fromIdx = groupItems.findIndex((i) => i.id === fromId);
+      const toIdx = groupItems.findIndex((i) => i.id === toId);
       if (fromIdx === -1 || toIdx === -1 || fromIdx === toIdx) return;
-      const next = [...items];
+      const next = [...groupItems];
       const [moved] = next.splice(fromIdx, 1);
       next.splice(toIdx, 0, moved);
-      setItems(next);
+
+      const otherItems = items.filter((i) => i.category !== groupItems[0]?.category);
+      setItems([...otherItems, ...next]);
       setBusyId(fromId);
       await fetch("/api/admin/partners/reorder", {
         method: "POST",
@@ -75,7 +88,11 @@ export function PartnerTable() {
     if (!dragId) return;
     function onUp() {
       if (dragId && overId && dragId !== overId) {
-        persistReorder(dragId, overId);
+        const dragged = items.find((i) => i.id === dragId);
+        if (dragged) {
+          const groupItems = items.filter((i) => i.category === dragged.category);
+          persistReorder(groupItems, dragId, overId);
+        }
       }
       setDragId(null);
       setOverId(null);
@@ -83,13 +100,13 @@ export function PartnerTable() {
     window.addEventListener("mouseup", onUp);
     return () => window.removeEventListener("mouseup", onUp);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dragId, overId]);
+  }, [dragId, overId, items]);
 
   async function createItem(e: React.FormEvent) {
     e.preventDefault();
     setFormError(null);
-    if (!newForm.name.trim() || !newForm.logoUrl.trim()) {
-      setFormError("名稱與 Logo 網址為必填欄位");
+    if (!newForm.name.trim()) {
+      setFormError("名稱為必填欄位");
       return;
     }
     const res = await fetch("/api/admin/partners", {
@@ -108,14 +125,14 @@ export function PartnerTable() {
 
   function startEdit(item: Partner) {
     setEditingId(item.id);
-    setEditForm({ name: item.name, description: item.description, logoUrl: item.logoUrl });
+    setEditForm({ name: item.name, description: item.description, category: item.category });
     setFormError(null);
   }
 
   async function saveEdit(id: string) {
     setFormError(null);
-    if (!editForm.name.trim() || !editForm.logoUrl.trim()) {
-      setFormError("名稱與 Logo 網址為必填欄位");
+    if (!editForm.name.trim()) {
+      setFormError("名稱為必填欄位");
       return;
     }
     setBusyId(id);
@@ -141,25 +158,40 @@ export function PartnerTable() {
     setBusyId(null);
   }
 
-  return (
-    <div>
-      {loadError && <p className="admin__error">{loadError}</p>}
+  async function uploadLogo(id: string, file: File) {
+    setUploadingId(id);
+    setUploadErrorId(null);
+    setUploadError(null);
+    const form = new FormData();
+    form.append("file", file);
+    const res = await fetch(`/api/admin/partners/${id}/upload`, { method: "POST", body: form });
+    const data = await res.json();
+    setUploadingId(null);
+    if (!res.ok) {
+      setUploadErrorId(id);
+      setUploadError(data.error ?? "上傳失敗");
+      return;
+    }
+    await load(true);
+  }
 
-      {loading ? (
-        <p style={{ color: "#5f7268" }}>載入中…</p>
-      ) : loadError ? null : (
+  function renderGroupTable(group: Category, label: string) {
+    const groupItems = items.filter((i) => i.category === group);
+    return (
+      <div key={group} style={{ marginBottom: 32 }}>
+        <h3 style={{ color: "#14231b", fontSize: 16, marginBottom: 10 }}>{label}管理</h3>
         <div style={{ overflowX: "auto" }}>
           <table>
             <thead>
               <tr>
                 <th></th>
                 <th>名稱</th>
-                <th>Logo 網址</th>
+                <th>Logo</th>
                 <th>操作</th>
               </tr>
             </thead>
             <tbody>
-              {items.map((item) =>
+              {groupItems.map((item) =>
                 editingId === item.id ? (
                   <tr key={item.id}>
                     <td colSpan={4}>
@@ -171,13 +203,18 @@ export function PartnerTable() {
                           placeholder="名稱"
                           style={{ width: 200 }}
                         />
-                        <input
-                          className="finput"
-                          value={editForm.logoUrl}
-                          onChange={(e) => setEditForm({ ...editForm, logoUrl: e.target.value })}
-                          placeholder="Logo 網址"
-                          style={{ flex: 1, minWidth: 220 }}
-                        />
+                        <select
+                          className="finput fselect"
+                          value={editForm.category}
+                          onChange={(e) => setEditForm({ ...editForm, category: e.target.value as Category })}
+                          style={{ width: 140 }}
+                        >
+                          {GROUPS.map((g) => (
+                            <option key={g.key} value={g.key}>
+                              {g.label}
+                            </option>
+                          ))}
+                        </select>
                         <textarea
                           className="finput"
                           value={editForm.description}
@@ -209,8 +246,33 @@ export function PartnerTable() {
                       </span>
                     </td>
                     <td>{item.name}</td>
-                    <td style={{ maxWidth: 260, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {item.logoUrl}
+                    <td>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                        <span>
+                          {item.logoUrl ? (
+                            <a href={item.logoUrl} target="_blank" rel="noreferrer">
+                              已上傳
+                            </a>
+                          ) : (
+                            "待提供"
+                          )}
+                        </span>
+                        <label className="small" style={{ cursor: "pointer", width: "fit-content" }}>
+                          {uploadingId === item.id ? "上傳中…" : item.logoUrl ? "更換 Logo" : "上傳 Logo"}
+                          <input
+                            type="file"
+                            accept="image/png"
+                            style={{ display: "none" }}
+                            disabled={uploadingId === item.id}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              e.target.value = "";
+                              if (file) uploadLogo(item.id, file);
+                            }}
+                          />
+                        </label>
+                        {uploadErrorId === item.id && <p className="admin__error">{uploadError}</p>}
+                      </div>
                     </td>
                     <td style={{ display: "flex", gap: 6 }}>
                       <button type="button" className="small" disabled={busyId === item.id} onClick={() => startEdit(item)}>
@@ -225,12 +287,27 @@ export function PartnerTable() {
               )}
             </tbody>
           </table>
-          {items.length === 0 && <p style={{ color: "#5f7268", marginTop: 16 }}>目前沒有合作夥伴。</p>}
+          {groupItems.length === 0 && <p style={{ color: "#5f7268", marginTop: 16 }}>目前沒有{label}。</p>}
         </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {loadError && <p className="admin__error">{loadError}</p>}
+
+      {loading ? (
+        <p style={{ color: "#5f7268" }}>載入中…</p>
+      ) : loadError ? null : (
+        GROUPS.map((g) => renderGroupTable(g.key, g.label))
       )}
 
       <div className="glass" style={{ padding: 20, marginTop: 24, maxWidth: 640 }}>
-        <h3 style={{ color: "#14231b", fontSize: 16, marginBottom: 12 }}>新增合作夥伴</h3>
+        <h3 style={{ color: "#14231b", fontSize: 16, marginBottom: 12 }}>新增夥伴</h3>
+        <p style={{ color: "#5f7268", fontSize: 13, marginBottom: 10 }}>
+          先填基本資料建立夥伴，建立後可在上方對應分類的列表為其上傳 Logo（PNG 格式，寬度需至少 800px）。
+        </p>
         <form onSubmit={createItem} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <input
             className="finput"
@@ -238,12 +315,17 @@ export function PartnerTable() {
             onChange={(e) => setNewForm({ ...newForm, name: e.target.value })}
             placeholder="名稱"
           />
-          <input
-            className="finput"
-            value={newForm.logoUrl}
-            onChange={(e) => setNewForm({ ...newForm, logoUrl: e.target.value })}
-            placeholder="Logo 網址"
-          />
+          <select
+            className="finput fselect"
+            value={newForm.category}
+            onChange={(e) => setNewForm({ ...newForm, category: e.target.value as Category })}
+          >
+            {GROUPS.map((g) => (
+              <option key={g.key} value={g.key}>
+                {g.label}
+              </option>
+            ))}
+          </select>
           <textarea
             className="finput"
             value={newForm.description}

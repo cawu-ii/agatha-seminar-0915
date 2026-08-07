@@ -24,7 +24,11 @@ export default async function SeminarLandingPage() {
   // add-content-cms), same pattern as the agenda query above.
   const highlights = await prisma.highlight.findMany({ orderBy: { sortOrder: "asc" } }).catch(() => []);
   const speakers = await prisma.speaker.findMany({ orderBy: { sortOrder: "asc" } }).catch(() => []);
+  // Partners split into two fixed groups (openspec: add-speaker-partner-upload) -
+  // HOST (今晧實業、湧現智庫) rendered separately from COORGANIZER partners.
   const partners = await prisma.partner.findMany({ orderBy: { sortOrder: "asc" } }).catch(() => []);
+  const hostPartners = partners.filter((p) => p.category === "HOST");
+  const coorganizerPartners = partners.filter((p) => p.category === "COORGANIZER");
   const highlightLabels = ["一", "二", "三", "四", "五", "六", "七", "八", "九", "十"];
   const formOptions = await loadFormOptions().catch(
     (): FormOptionsByField => ({ dept: [], title: [], industry: [], size: [], sessions: [], stage: [], consult: [] })
@@ -321,6 +325,20 @@ export default async function SeminarLandingPage() {
         </div>
       </section>
 
+      {hostPartners.length > 0 && (
+        <section className="sec" id="hosts" style={{ paddingTop: 0 }}>
+          <div className="wrap">
+            <div className="sec__h">
+              <p className="en">Hosts</p>
+              <h2>主辦單位</h2>
+            </div>
+            <PartnerWall
+              partners={hostPartners.map((p) => ({ id: p.id, name: p.name, desc: p.description, img: p.logoUrl }))}
+            />
+          </div>
+        </section>
+      )}
+
       <section className="sec" id="partners" style={{ paddingTop: 0 }}>
         <div className="wrap">
           <div className="sec__h">
@@ -329,7 +347,7 @@ export default async function SeminarLandingPage() {
             <p className="sec__lead">本次論壇講者單位與攤位夥伴（依序排列，非代表排名）。</p>
           </div>
           <PartnerWall
-            partners={partners.map((p) => ({ id: p.id, name: p.name, desc: p.description, img: p.logoUrl }))}
+            partners={coorganizerPartners.map((p) => ({ id: p.id, name: p.name, desc: p.description, img: p.logoUrl }))}
           />
         </div>
       </section>

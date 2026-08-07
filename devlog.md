@@ -558,3 +558,28 @@
 **驗證方式：** 兩處文案修改後 `npm run build` 通過；瀏覽器開 `/seminar/0915/thanks` 用 `get_page_text` 確認畫面文字正確顯示「感謝您報名「湧現智庫Agatha · 製造業 AI 商用實戰論壇」」。信件主旨的改動因為是純字串樣板、沒有條件邏輯分支，直接讀程式碼比對正確性，未另外觸發實際寄信驗證（延續本專案一貫「無憑證時 log-only、有邏輯分支才需要跑一次驗證」的判斷）。
 
 **同步更新：** 本則 Phase 33 devlog；README 多處更新（與原型 HTML 差異表、v3 更新對照表引言與資料表、角色與分工表整個重寫——拆解「公司公關」vs「公關公司」的區別並新增一段說明、系統資料流圖 GTM 節點標籤、`.env` 環境變數說明表、待確認事項第 5 項改為「已定案」並新增第 7 項記錄權限釐清結果、專案進度追蹤表新增／更新三列）。這次沒有開新的 OpenSpec change——GTM 容器代碼與確認信品牌前綴都是**內容／憑證層級**的更新，沒有改變任何 capability spec 描述的機制或行為（跟 Phase 30 修正「Agentic」錯字、GTM ID 一度到位時的處理方式一致），純文件與文案層級異動不構成 spec delta。原始 `Agatha_Seminar_報名系統與追蹤_CTO交接文件_0806.docx` 已複製進專案根目錄，受 `.gitignore` 保護不進版控。
+
+## Phase 34 — 講者照片／夥伴 Logo 檔案上傳＋夥伴主辦/協辦分類（`add-speaker-partner-upload` 落地）（2026-08-07）
+
+**做了什麼：** Lindy 實際測試落地頁跟後台後，回報兩類問題：後台的講者、夥伴管理只能貼圖片網址，需要真正的檔案上傳；夥伴清單需要拆成「主辦單位」（今晧實業、湧現智庫）跟「協辦單位」兩類，落地頁對應要分開呈現。這次照這個專案一貫的流程走：先開 OpenSpec 提案（`openspec-propose` skill），design.md 列出 4 個待確認決策，用 `AskUserQuestion` 逐項跟你確認過（比照 Banner 那次的做法），才動手實作。
+
+- **確認的 4 個決策**：講者照片 520×520 是**下限**（≥520×520 即可，不要求精確正方形，跟 Banner 的精確比對不同）；夥伴 Logo 只驗證**格式是 PNG＋寬度 ≥800px**，不檢查是否真的透明背景；「主辦單位」分類**可自由編輯**，不鎖定；換圖／換 Logo 一樣**立即刪除**舊檔，沿用 Banner 的做法。
+- **資料模型**：`Partner` 新增 `PartnerCategory`（`HOST`／`COORGANIZER`）欄位。實作過程中發現一個規劃時沒注意到的地方——原本以為 `Speaker.photoUrl` 已是 nullable 不用改 schema，但 `Partner.logoUrl` 原本是必填欄位，若要比照講者「先建立資料、再上傳照片」的兩步驟流程，`logoUrl` 也得改成可留空，於是多加了一個 migration 把它改成 `String?`。
+- **種子資料**：`prisma/seed-partners.ts` 從「資料庫裡已經有資料就整個跳過」改寫成「逐筆用名稱比對、找不到就新增、分類不同就更新」，這樣舊環境重新跑這個 seed 也能安全地把既有的今晧實業標記成主辦單位、補上湧現智庫這筆新資料，不會因為表已經有資料就整個跳過、也不會重複新增。
+- **上傳基礎建設**：`app/api/admin/speakers/[id]/upload/route.ts`、`app/api/admin/partners/[id]/upload/route.ts` 兩支新路由，完全沿用 Banner 上傳的模式（`image-size` 驗尺寸、寫入 `public/uploads/`、換檔即刪舊檔）。兩者都額外加了一個小防呆：舊的圖片網址如果不是以 `/uploads/...` 開頭（代表是種子資料裡原本寫死的 `/images/asset-*.png` 靜態圖，不是使用者上傳的），換圖時**不會**把它刪掉——避免誤刪專案內建的靜態素材。
+- **後台 UI**：講者、夥伴的「編輯」表單拿掉網址輸入框，改成每一列一個「上傳照片／Logo」的檔案輸入框，選檔案就立即上傳，跟 `BannerUploader` 的互動模式一致。夥伴管理畫面拆成「主辦單位管理」「協辦單位管理」兩個獨立表格，各自的拖曳排序互不影響（拖曳主辦單位只會動主辦單位的 `sortOrder`，協辦單位的數字完全不受影響）。
+- **落地頁**：`PartnerWall` 元件的 `img` 型別改成可為 `null`（因為現在夥伴可能還沒上傳 Logo），沒 Logo 的夥伴直接跳過不渲染，不會顯示破圖。落地頁查一次 `Partner` 資料表，依 `category` 在記憶體裡拆成兩份陣列，各自餵給一個 `PartnerWall`，「主辦單位」區塊沿用同一個元件（含點擊彈出簡介的互動），沒有另外做一個新元件。
+
+**過程中發現並修正的一個既有缺口（不是這次新增的功能，是驗證時才注意到）：** 講者、夥伴的刪除 API（`DELETE /api/admin/speakers/:id`、`DELETE /api/admin/partners/:id`）從第一天（Phase 17）就只刪資料庫那筆紀錄，從來沒有把對應上傳的圖片檔案一起從磁碟清掉——只是過去這兩個欄位都是貼網址，沒有檔案上傳這件事，這個缺口一直沒有機會浮現。這次因為有真正的上傳檔案了，順手在兩支 DELETE handler 補上同一套「刪除前先記下舊網址、資料庫刪除成功後再 `unlink()`」邏輯（跟上傳路由裡「換圖時刪舊檔」用的是同一個防呆：只刪 `/uploads/...` 開頭的檔案，種子資料的靜態圖不會被誤刪），避免刪除講者／夥伴之後留下永遠沒人清的孤兒檔案。
+
+**驗證方式：**
+1. `npm run build` 過，新路由（`speakers/[id]/upload`、`partners/[id]/upload`）正確編譯。
+2. 瀏覽器登入後台，實際用 UI 建立一筆測試協辦夥伴（含分類下拉選單），確認建立後表格上出現「待提供」＋「上傳 Logo」按鈕，跟講者建立後的行為一致。
+3. 因為 Browser pane 沒有檔案上傳能力（跟 Banner 那次遇到的限制一樣），改用 `sharp` 產生測試圖片＋Node `fetch` 帶 session cookie 直接測 API：講者照片 400×400（低於下限）→ 400 並列出需求尺寸；520×520（剛好達下限）→ 200；800×900（超過下限）→ 200，證實真的是下限而非精確比對。夥伴 Logo 用 JPEG 上傳 → 400「僅支援 PNG 格式」；PNG 但寬度只有 500px → 400「寬度過小」；PNG 且 800px 寬 → 200。
+4. 換圖驗證：對同一個講者連續上傳兩次，確認 `public/uploads/speakers/` 底下只留最新那個檔案，舊檔案真的被刪除。
+5. 瀏覽器開落地頁，用 `getElementById('hosts')`／`getElementById('partners')` 分別數卡片數量，確認主辦單位區塊剛好 2 張（今晧實業、湧現智庫）、合作夥伴區塊剛好 7 張（其餘），沒有重複也沒有遺漏。
+6. 用 API 把兩個主辦單位的順序對調，確認協辦單位 7 筆的 `sortOrder` 在操作前後完全沒變，證實排序真的是分類內獨立的；操作完把主辦單位順序改回原狀。
+7. 刪光所有測試資料（測試講者、測試夥伴×2）後，確認 `public/uploads/speakers/`、`public/uploads/partners/` 兩個資料夾都是空的——驗證上面提到的「刪除時一併清檔案」修正確實有效。
+8. 未登入直接呼叫兩支新上傳路由，確認都被既有的全域 `middleware.ts` 攔截、307 導回 `/admin/login`；`grep -n "CTO"` 掃過兩支路由與兩個後台元件，確認都沒有角色限制，PR／CTO 權限對等。
+
+**同步更新：** `openspec/changes/add-speaker-partner-upload/tasks.md` 全部項目勾選並補上驗證備註與過程中發現的兩個規劃外調整（`Partner.logoUrl` 改 nullable、DELETE 補檔案清除），`openspec validate --strict` 過後歸檔為 `2026-08-07-add-speaker-partner-upload`。README 多處更新：內容管理章節（講者／夥伴段落整段重寫，含上傳規格與分類說明）、v3 更新對照表新增一列、專案結構（新路由）、專案進度追蹤表新增一列。測試期間產生的 `.test-cookie`／`.test-speaker-id`／`.test-partner-id` 暫存檔已清除，不進版控。
