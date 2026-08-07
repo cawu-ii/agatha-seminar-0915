@@ -1,9 +1,36 @@
+import fs from "node:fs";
+import path from "node:path";
 import type { Registration } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 const EVENT_NAME = "製造業 AI 商用實戰論壇";
 const EVENT_WHEN = "2026/09/15（二）13:30–16:30";
 const EVENT_WHERE = "台北・華南銀行國際會議中心";
+
+const HTML_TEMPLATE_PATH = path.join(
+  process.cwd(),
+  "lib/integrations/email-templates/registration-confirmation.html"
+);
+let htmlTemplateCache: string | null = null;
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+/** Lindy-designed HTML template (lib/integrations/email-templates/); only the
+ * registrant's name is templated in - everything else is the same static
+ * event copy for every recipient. */
+function buildHtmlEmail(reg: Registration): string {
+  if (!htmlTemplateCache) {
+    htmlTemplateCache = fs.readFileSync(HTML_TEMPLATE_PATH, "utf-8");
+  }
+  return htmlTemplateCache.replace(/\{\{REGISTRANT_NAME\}\}/g, escapeHtml(reg.name));
+}
 
 /** CTO handoff doc §8.1 approved confirmation-email copy. */
 function buildEmail(reg: Registration) {
@@ -15,7 +42,8 @@ function buildEmail(reg: Registration) {
 本論壇採資格審核制，審核結果將另行以 Email 通知，請留意信件。期待與您現場交流。
 
 —— 湧現智庫 Agatha 團隊敬上`;
-  return { subject, text };
+  const html = buildHtmlEmail(reg);
+  return { subject, text, html };
 }
 
 /**
@@ -28,7 +56,7 @@ export async function sendConfirmationEmail(registrationId: string): Promise<voi
     if (!reg) return;
 
     const provider = process.env.EMAIL_PROVIDER ?? "none";
-    const { subject, text } = buildEmail(reg);
+    const { subject, text, html } = buildEmail(reg);
 
     if (provider === "resend" && process.env.RESEND_API_KEY) {
       const { Resend } = await import("resend");
@@ -38,6 +66,7 @@ export async function sendConfirmationEmail(registrationId: string): Promise<voi
         to: reg.email,
         subject,
         text,
+        html,
       });
       await markEmailStatus(reg.id, "SENT");
     } else if (provider === "gmail" && process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
@@ -58,6 +87,7 @@ export async function sendConfirmationEmail(registrationId: string): Promise<voi
         to: reg.email,
         subject,
         text,
+        html,
       });
       await markEmailStatus(reg.id, "SENT");
     } else {

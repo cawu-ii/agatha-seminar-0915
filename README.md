@@ -58,7 +58,7 @@ Next.js（App Router + TypeScript）全端專案：
 | UTM（`utm_source=...`） | 未處理，連結尾端參數被忽略 | 網址上的 UTM 參數會被擷取，並隨該筆報名一併存入資料庫 |
 | 感謝頁 | 無獨立網址，僅為同頁切換至另一個 `<div>` | 具備獨立網址 `/seminar/0915/thanks`，新增「加入 Google 日曆」「下載 .ics」兩項功能（原型未提供） |
 | 追蹤（GTM／GA4／Meta） | 完全未埋設，原始碼中無任何 GTM 相關程式碼 | 已完成 GTM 容器、同意橫幅、兩項前端事件（`lp_view`／`cta_click`）之程式邏輯；GA4 Key Event（`generate_lead`）與 Meta Lead 改由鼎東於 GTM／GA4 後台依感謝頁網址設定 Trigger，不再由前端程式碼推送（2026/08/06 交接文件更新，見下方「事件字典」）；**GTM 容器代碼已定案為 `GTM-M6P5QTRM`**（湧現／Lindy 自建，2026/08/06 下午文件確認，取代先前暫緩的 `GTM-M583KSV7`），待部署時填入 `.env`，安裝範圍為 Landing Page（非全站） |
-| 確認信 | 無此功能 | 已具備寄信邏輯；**2026/08/07 起正式站已透過 Gmail SMTP 路徑實際寄出並確認送達** |
+| 確認信 | 無此功能 | 已具備寄信邏輯；**2026/08/07 起正式站已透過 Gmail SMTP 路徑實際寄出並確認送達**；**同日稍晚改寄 Lindy 設計的 HTML 版型**（純文字版仍同時附上作為 fallback），信中收件人姓名依報名資料動態代入，非寫死 |
 | Meta CAPI | 無 | 同上，邏輯已完成，未設定憑證時為 no-op |
 | 後台（`/admin`） | 不存在 | 新建功能，CTO／公關以個別帳號登入查看名單、篩選、標記處理狀態、重寄確認信 |
 | 名單匯出 | 不存在 | 匯出功能，`.xlsx` 格式；CLI（`EXPORT_TOKEN`）僅 CTO 可用，`/admin` 內建按鈕 2026/08/07 起 CTO／PR 皆可用，兩條路徑皆記錄稽核紀錄 |
@@ -259,6 +259,15 @@ npm run dev              # http://localhost:3000
 | `EMAIL_PROVIDER` / `RESEND_API_KEY` / `EMAIL_FROM` | 報名確認信（Resend 路徑，需網域 DNS 驗證） | 🟣 公司申辦交易信帳號（文件 §6.5） | `EMAIL_PROVIDER=none` 時為 log-only，不寄信亦不報錯 |
 | `GMAIL_USER` / `GMAIL_APP_PASSWORD` | 報名確認信（**2026/08/07 新增**的 Gmail SMTP 替代路徑：`EMAIL_PROVIDER=gmail`，用既有 `service@emergence.today` Gmail 帳號直接寄信，免 DNS/SPF/DKIM 設定） | 🟠 Lindy（[myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords) 生成，**不是**帳號登入密碼——16 碼小寫字母、4 碼一組） | **✅ 已於正式站設定並實測成功**（2026/08/07）；未設定時，若 `EMAIL_PROVIDER=gmail` 會落回 log-only |
 | `RAGIC_API_TOKEN` / `RAGIC_BASE_URL` | Ragic 名單同步（Phase B，尚未實作實際串接邏輯） | 🟣 BD／🟠 Lindy（文件 §6.2） | 未設定：`syncToRagic` 為 no-op + log |
+
+### 確認信版型：HTML 版（2026/08/07）
+
+Lindy 提供了一份設計好的 HTML 版型（原始檔另外交付，未進版控目錄外的下載位置），取代原本純文字信件：
+
+- 版型存放於 [`lib/integrations/email-templates/registration-confirmation.html`](lib/integrations/email-templates/registration-confirmation.html)，這是 Lindy 原始設計檔案的原封不動複製，**只把信中「吳韻萱 您好，」這行的姓名換成 `{{REGISTRANT_NAME}}` 佔位字串**，其餘版面、文案、內嵌圖片皆未更動。
+- 寄信時（`lib/integrations/email.ts`）讀取此版型，把 `{{REGISTRANT_NAME}}` 換成該筆報名資料實際填寫的姓名——**不是寫死的**，每個人收到的信會顯示自己的名字。姓名代入前會做 HTML escape（防止報名姓名欄位裡如果有 `<`、`&` 等字元破壞信件排版或造成注入）。
+- Resend／Gmail SMTP 兩條寄信路徑皆已改帶 `html` 欄位（同時保留原本的純文字 `text` 版本一併附上，作為信箱不支援 HTML 時的 fallback，也有助於避免被判定為垃圾郵件）；`EMAIL_PROVIDER=none` 的 log-only 路徑則不受影響，行為不變。
+- 事件日期／時間／地點等其餘內容維持版型原有的靜態文案（與 `EVENT_WHEN`／`EVENT_WHERE` 現行資訊一致），這次僅將收件人姓名改為動態代入，未將整封信改為完全資料庫驅動。
 
 ---
 
@@ -472,4 +481,6 @@ SQLite 是單一檔案（`prisma/dev.db`），寫入的資料就存在「跑這�
 | 公關帳號開放整批匯出 Excel 權限（[`openspec/changes/archive/2026-08-07-open-export-to-pr-role/`](openspec/changes/archive/2026-08-07-open-export-to-pr-role/)） | `done` | 2026/08/07 直接指示放寬 v3 §6.9 限制；`/admin` 內建匯出按鈕 CTO／PR 皆可用，CLI（`EXPORT_TOKEN`）路徑仍僅 CTO；已用真正的 production build 驗證 PR 匯出成功且稽核紀錄正確歸屬操作帳號，帳號管理仍僅 CTO 可進入 |
 | 講者「更換照片」／夥伴「更換 Logo」按鈕樣式 | `done` | 原本用 `<label>` 包裹檔案輸入框，CSS 選擇器只認 `<button>`，畫面上看起來像純文字；改成真正的 `<button>` 觸發隱藏的檔案輸入框，已於瀏覽器驗證樣式與其他按鈕一致 |
 | 封存報名資料（CTO 專屬，[`openspec/changes/archive/2026-08-07-add-cto-archive-registrations/`](openspec/changes/archive/2026-08-07-add-cto-archive-registrations/)） | `done` | 你要求刪除測試報名資料後，比照帳號管理「停用而非刪除」的作法新增：CTO 可封存／取消封存單筆報名資料，封存後從預設清單與所有匯出隱藏、資料庫底層不刪除；PR 角色完全看不到此功能（API 層拒絕，非僅隱藏 UI）。已用真正的 production build 驗證封存／取消封存、匯出排除、PR 403、無任何程式碼路徑呼叫 `delete`；另提供 `scripts/archive-test-registrations.ts` 供你直接在 EC2 上封存正式站現有測試資料，待 redeploy 後執行 |
+| 手機版 Hero 區塊排版（第二次調整） | `done` | 2026/08/07：你回報第一次的間距微調（`padding-top:56px`／`.chips margin-top:28px`／`.hero__cta margin-top:36px`）效果不夠明顯，畫面仍偏擠。第二次調整改變策略：不是每個區塊平均加一點間距，而是讓「標題群組」（標語／標題／副標）維持緊湊，「時間地點」與「CTA 按鈕」前各拉開明顯間距（`.hero__event margin-top:38px`、`.hero__cta margin-top:46px`），讓畫面讀起來是 3 個分組而非 6 行等距文字；外層 padding 同時收緊（`40px/40px`），整體高度與調整前接近，但分組更清楚。已用 `getComputedStyle`／`getBoundingClientRect` 於 375px（新數值）與 1280px（桌機數值 `70px/66px` 等完全不變）兩種寬度驗證，`npm run build` 通過 |
+| 報名確認信改用 HTML 版型＋收件人姓名動態代入 | `done` | 2026/08/07：Lindy 希望確認信更好看，提供設計好的 HTML 版型；你也指出信中「框起來」的收件人姓名不可寫死，須依實際報名人變化。新增 [`lib/integrations/email-templates/registration-confirmation.html`](lib/integrations/email-templates/registration-confirmation.html)（Lindy 原始設計檔，僅把姓名行換成 `{{REGISTRANT_NAME}}` 佔位字串），寄信時讀取版型並代入該筆報名的實際姓名（**HTML escape 過**，防止姓名欄位內容破壞信件排版或造成注入），Resend／Gmail SMTP 兩條路徑皆已改帶 `html` 欄位，並保留純文字版作為 fallback。已用真正的 production build 驗證：真實送出一筆報名、確認 `emailStatus` 為 `SKIPPED`（非 `FAILED`，證明版型檔案讀取與姓名代入未拋出例外）；另外用含 `<script>` 標籤的姓名做過一次注入測試，確認瀏覽器僅顯示逃脫後的文字、未觸發執行 |
 | 新子網域部署 | `open` | 已記錄於「交接文件 v3 更新對照」，純部署/DNS 層級，非工程範圍 |
