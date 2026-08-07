@@ -13,6 +13,14 @@ const HTML_TEMPLATE_PATH = path.join(
 );
 let htmlTemplateCache: string | null = null;
 
+// The template's decorative hero image must be a real hosted URL, not an
+// inline base64 data: URI - the original Lindy-designed file embedded it
+// inline as one ~384KB unbroken line, which corrupted in transit (SMTP/MIME
+// line-length handling broke the HTML mid-attribute, so recipients saw raw
+// tag source instead of the rendered email). Extracted to public/email-assets/
+// and referenced by absolute URL instead - see devlog Phase 40.
+const ASSET_BASE_URL = process.env.EMAIL_ASSET_BASE_URL ?? "https://2026-forum.agatha-ai.com";
+
 function escapeHtml(value: string): string {
   return value
     .replace(/&/g, "&amp;")
@@ -29,7 +37,9 @@ function buildHtmlEmail(reg: Registration): string {
   if (!htmlTemplateCache) {
     htmlTemplateCache = fs.readFileSync(HTML_TEMPLATE_PATH, "utf-8");
   }
-  return htmlTemplateCache.replace(/\{\{REGISTRANT_NAME\}\}/g, escapeHtml(reg.name));
+  return htmlTemplateCache
+    .replace(/\{\{REGISTRANT_NAME\}\}/g, escapeHtml(reg.name))
+    .replace(/\{\{ASSET_BASE_URL\}\}/g, ASSET_BASE_URL);
 }
 
 /** CTO handoff doc §8.1 approved confirmation-email copy. */

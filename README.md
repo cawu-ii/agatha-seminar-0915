@@ -258,16 +258,18 @@ npm run dev              # http://localhost:3000
 | `META_CAPI_TOKEN` / `META_PIXEL_ID` | Meta Conversions API 伺服器端事件 | 🩷 公關公司（文件 §5） | 未設定：`sendMetaCAPI` 為 no-op + log，不影響報名流程 |
 | `EMAIL_PROVIDER` / `RESEND_API_KEY` / `EMAIL_FROM` | 報名確認信（Resend 路徑，需網域 DNS 驗證） | 🟣 公司申辦交易信帳號（文件 §6.5） | `EMAIL_PROVIDER=none` 時為 log-only，不寄信亦不報錯 |
 | `GMAIL_USER` / `GMAIL_APP_PASSWORD` | 報名確認信（**2026/08/07 新增**的 Gmail SMTP 替代路徑：`EMAIL_PROVIDER=gmail`，用既有 `service@emergence.today` Gmail 帳號直接寄信，免 DNS/SPF/DKIM 設定） | 🟠 Lindy（[myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords) 生成，**不是**帳號登入密碼——16 碼小寫字母、4 碼一組） | **✅ 已於正式站設定並實測成功**（2026/08/07）；未設定時，若 `EMAIL_PROVIDER=gmail` 會落回 log-only |
+| `EMAIL_ASSET_BASE_URL` | 確認信 HTML 版型裡 Hero 裝飾圖片的絕對網址前綴（見下方「確認信版型」小節） | 🔵 CTO（僅在正式網域改變時才需要設定） | 未設定時預設為現行正式網域 `https://2026-forum.agatha-ai.com`，不影響運作 |
 | `RAGIC_API_TOKEN` / `RAGIC_BASE_URL` | Ragic 名單同步（Phase B，尚未實作實際串接邏輯） | 🟣 BD／🟠 Lindy（文件 §6.2） | 未設定：`syncToRagic` 為 no-op + log |
 
 ### 確認信版型：HTML 版（2026/08/07）
 
 Lindy 提供了一份設計好的 HTML 版型（原始檔另外交付，未進版控目錄外的下載位置），取代原本純文字信件：
 
-- 版型存放於 [`lib/integrations/email-templates/registration-confirmation.html`](lib/integrations/email-templates/registration-confirmation.html)，這是 Lindy 原始設計檔案的原封不動複製，**只把信中「吳韻萱 您好，」這行的姓名換成 `{{REGISTRANT_NAME}}` 佔位字串**，其餘版面、文案、內嵌圖片皆未更動。
+- 版型存放於 [`lib/integrations/email-templates/registration-confirmation.html`](lib/integrations/email-templates/registration-confirmation.html)，這是 Lindy 原始設計檔案的複製，**把信中「吳韻萱 您好，」這行的姓名換成 `{{REGISTRANT_NAME}}` 佔位字串**，其餘版面、文案皆未更動。
 - 寄信時（`lib/integrations/email.ts`）讀取此版型，把 `{{REGISTRANT_NAME}}` 換成該筆報名資料實際填寫的姓名——**不是寫死的**，每個人收到的信會顯示自己的名字。姓名代入前會做 HTML escape（防止報名姓名欄位裡如果有 `<`、`&` 等字元破壞信件排版或造成注入）。
 - Resend／Gmail SMTP 兩條寄信路徑皆已改帶 `html` 欄位（同時保留原本的純文字 `text` 版本一併附上，作為信箱不支援 HTML 時的 fallback，也有助於避免被判定為垃圾郵件）；`EMAIL_PROVIDER=none` 的 log-only 路徑則不受影響，行為不變。
 - 事件日期／時間／地點等其餘內容維持版型原有的靜態文案（與 `EVENT_WHEN`／`EVENT_WHERE` 現行資訊一致），這次僅將收件人姓名改為動態代入，未將整封信改為完全資料庫驅動。
+- **Hero 裝飾圖片已改為外部連結，不再內嵌 base64**：Lindy 原始檔案把圖片直接以 `background-image:url('data:image/png;base64,...')` 內嵌在信件裡，整段 base64 資料只有一行、約 38 萬字元長，實測寄出後部分信箱只顯示到圖片那一段就整個「破版」——後面的 HTML 原始碼直接以純文字顯示（如同你截圖看到的），沒有被正常解析成畫面（推測是這一行超過 SMTP／MIME 傳輸慣例上的單行長度限制，中途被中繼郵件伺服器插入不該有的換行，打斷了 HTML 屬性的引號配對，導致收件端的信件解析器從那個位置開始「當機」，把後面全部內容當成純文字顯示）。修正方式是把這張圖片還原成真正的 PNG 檔案，存在 [`public/email-assets/hero-bg.png`](public/email-assets/hero-bg.png)（透過部署網址公開存取，跟落地頁其他靜態圖片一樣），版型裡改成 `url('{{ASSET_BASE_URL}}/email-assets/hero-bg.png')`，寄信時同樣做字串替換代入實際網域。整封信的大小也因此從約 400KB 降到約 16KB。
 
 ---
 
@@ -482,5 +484,5 @@ SQLite 是單一檔案（`prisma/dev.db`），寫入的資料就存在「跑這�
 | 講者「更換照片」／夥伴「更換 Logo」按鈕樣式 | `done` | 原本用 `<label>` 包裹檔案輸入框，CSS 選擇器只認 `<button>`，畫面上看起來像純文字；改成真正的 `<button>` 觸發隱藏的檔案輸入框，已於瀏覽器驗證樣式與其他按鈕一致 |
 | 封存報名資料（CTO 專屬，[`openspec/changes/archive/2026-08-07-add-cto-archive-registrations/`](openspec/changes/archive/2026-08-07-add-cto-archive-registrations/)） | `done` | 你要求刪除測試報名資料後，比照帳號管理「停用而非刪除」的作法新增：CTO 可封存／取消封存單筆報名資料，封存後從預設清單與所有匯出隱藏、資料庫底層不刪除；PR 角色完全看不到此功能（API 層拒絕，非僅隱藏 UI）。已用真正的 production build 驗證封存／取消封存、匯出排除、PR 403、無任何程式碼路徑呼叫 `delete`；另提供 `scripts/archive-test-registrations.ts` 供你直接在 EC2 上封存正式站現有測試資料，待 redeploy 後執行 |
 | 手機版 Hero 區塊排版（第二次調整） | `done` | 2026/08/07：你回報第一次的間距微調（`padding-top:56px`／`.chips margin-top:28px`／`.hero__cta margin-top:36px`）效果不夠明顯，畫面仍偏擠。第二次調整改變策略：不是每個區塊平均加一點間距，而是讓「標題群組」（標語／標題／副標）維持緊湊，「時間地點」與「CTA 按鈕」前各拉開明顯間距（`.hero__event margin-top:38px`、`.hero__cta margin-top:46px`），讓畫面讀起來是 3 個分組而非 6 行等距文字；外層 padding 同時收緊（`40px/40px`），整體高度與調整前接近，但分組更清楚。已用 `getComputedStyle`／`getBoundingClientRect` 於 375px（新數值）與 1280px（桌機數值 `70px/66px` 等完全不變）兩種寬度驗證，`npm run build` 通過 |
-| 報名確認信改用 HTML 版型＋收件人姓名動態代入 | `done` | 2026/08/07：Lindy 希望確認信更好看，提供設計好的 HTML 版型；你也指出信中「框起來」的收件人姓名不可寫死，須依實際報名人變化。新增 [`lib/integrations/email-templates/registration-confirmation.html`](lib/integrations/email-templates/registration-confirmation.html)（Lindy 原始設計檔，僅把姓名行換成 `{{REGISTRANT_NAME}}` 佔位字串），寄信時讀取版型並代入該筆報名的實際姓名（**HTML escape 過**，防止姓名欄位內容破壞信件排版或造成注入），Resend／Gmail SMTP 兩條路徑皆已改帶 `html` 欄位，並保留純文字版作為 fallback。已用真正的 production build 驗證：真實送出一筆報名、確認 `emailStatus` 為 `SKIPPED`（非 `FAILED`，證明版型檔案讀取與姓名代入未拋出例外）；另外用含 `<script>` 標籤的姓名做過一次注入測試，確認瀏覽器僅顯示逃脫後的文字、未觸發執行 |
+| 報名確認信改用 HTML 版型＋收件人姓名動態代入 | `done` | 2026/08/07：Lindy 希望確認信更好看，提供設計好的 HTML 版型；你也指出信中「框起來」的收件人姓名不可寫死，須依實際報名人變化。新增 [`lib/integrations/email-templates/registration-confirmation.html`](lib/integrations/email-templates/registration-confirmation.html)（Lindy 原始設計檔，僅把姓名行換成 `{{REGISTRANT_NAME}}` 佔位字串），寄信時讀取版型並代入該筆報名的實際姓名（**HTML escape 過**，防止姓名欄位內容破壞信件排版或造成注入），Resend／Gmail SMTP 兩條路徑皆已改帶 `html` 欄位，並保留純文字版作為 fallback。**第一版實際寄出後你回報收信變成一整串 HTML 原始碼**——查出是版型裡內嵌的一張 base64 圖片（約 38 萬字元、僅一行）在傳輸過程中被中繼郵件伺服器插入不該有的換行、打斷了 HTML 屬性引號配對；已改為把圖片還原成真正的 PNG 檔案（`public/email-assets/hero-bg.png`）並用外部網址引用，整封信從約 400KB 降到約 16KB，重新驗證單行最長字元數已遠低於容易觸發此問題的門檻 |
 | 新子網域部署 | `open` | 已記錄於「交接文件 v3 更新對照」，純部署/DNS 層級，非工程範圍 |
