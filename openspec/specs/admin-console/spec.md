@@ -31,14 +31,3 @@ The system SHALL NOT expose any control in `/admin` that deletes or modifies a r
 - **WHEN** an admin views a registration in the list
 - **THEN** no delete or edit-core-fields control is present or reachable
 
-### Requirement: The console provides no bulk export action
-The system SHALL NOT expose any control to a PR-role session in `/admin` that exports multiple registrations at once (CSV, Excel, or otherwise). CTO-role sessions may access bulk export (see `data-export`).
-
-#### Scenario: Inspecting available admin actions
-- **WHEN** a PR-role account views the registration list
-- **THEN** no bulk-export/download-all control is present or reachable
-
-#### Scenario: CTO-role session inspects available actions
-- **WHEN** a CTO-role account views the registration list
-- **THEN** a bulk-export control is present and reachable
-

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type Category = "HOST" | "COORGANIZER";
 
@@ -34,6 +34,7 @@ export function PartnerTable() {
   const [formError, setFormError] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
+  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -257,20 +258,29 @@ export function PartnerTable() {
                             "待提供"
                           )}
                         </span>
-                        <label className="small" style={{ cursor: "pointer", width: "fit-content" }}>
+                        <input
+                          ref={(el) => {
+                            fileInputRefs.current[item.id] = el;
+                          }}
+                          type="file"
+                          accept="image/png"
+                          style={{ display: "none" }}
+                          disabled={uploadingId === item.id}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            e.target.value = "";
+                            if (file) uploadLogo(item.id, file);
+                          }}
+                        />
+                        <button
+                          type="button"
+                          className="small"
+                          style={{ width: "fit-content" }}
+                          disabled={uploadingId === item.id}
+                          onClick={() => fileInputRefs.current[item.id]?.click()}
+                        >
                           {uploadingId === item.id ? "上傳中…" : item.logoUrl ? "更換 Logo" : "上傳 Logo"}
-                          <input
-                            type="file"
-                            accept="image/png"
-                            style={{ display: "none" }}
-                            disabled={uploadingId === item.id}
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              e.target.value = "";
-                              if (file) uploadLogo(item.id, file);
-                            }}
-                          />
-                        </label>
+                        </button>
                         {uploadErrorId === item.id && <p className="admin__error">{uploadError}</p>}
                       </div>
                     </td>

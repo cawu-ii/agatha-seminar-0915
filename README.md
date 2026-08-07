@@ -44,7 +44,7 @@ Next.js（App Router + TypeScript）全端專案：
 - `/admin/accounts` — 帳號管理（CTO 專屬，新增／停用帳號、重設密碼）
 - `/admin/agenda`、`/admin/speakers`、`/admin/partners`、`/admin/highlights`、`/admin/form-options`、`/admin/banner`、`/admin/event-info` — 內容管理（議程／講者／合作夥伴／活動亮點／報名表單選項清單／Hero Banner／活動資訊四張卡片），CTO／公關皆可操作，儲存後落地頁下次載入即反映
 - `/api/register` — 報名寫入 API（驗證 → 寫庫 → 非同步寄信／推送 Meta CAPI）
-- `scripts/export-registrations.ts` + `/api/export`（CLI／權杖）與 `/api/admin/export`（`/admin` 內建按鈕，CTO 角色限定）— 名單匯出，`.xlsx` 格式，兩條路徑皆僅 CTO 可達，動作記錄於稽核紀錄
+- `scripts/export-registrations.ts` + `/api/export`（CLI／權杖，CTO 專用）與 `/api/admin/export`（`/admin` 內建按鈕，**2026/08/07 起 CTO／PR 皆可用**，見下方「名單匯出」）— 名單匯出，`.xlsx` 格式，動作記錄於稽核紀錄
 
 ---
 
@@ -61,7 +61,7 @@ Next.js（App Router + TypeScript）全端專案：
 | 確認信 | 無此功能 | 已具備寄信邏輯，未設定交易信帳號時僅於伺服器 log 記錄應發送對象，不會實際寄出 |
 | Meta CAPI | 無 | 同上，邏輯已完成，未設定憑證時為 no-op |
 | 後台（`/admin`） | 不存在 | 新建功能，CTO／公關以個別帳號登入查看名單、篩選、標記處理狀態、重寄確認信 |
-| 名單匯出 | 不存在 | CTO 角色專用匯出功能，`.xlsx` 格式（CLI 或 `/admin` 內建按鈕），並記錄稽核紀錄 |
+| 名單匯出 | 不存在 | 匯出功能，`.xlsx` 格式；CLI（`EXPORT_TOKEN`）僅 CTO 可用，`/admin` 內建按鈕 2026/08/07 起 CTO／PR 皆可用，兩條路徑皆記錄稽核紀錄 |
 
 摘要：**畫面沿用原型，資料庫與後台為全新建置；追蹤／寄信等第三方整合管線已完成串接，僅因憑證尚未到位而處於安全的 no-op 狀態，不會因缺少憑證而導致錯誤或流程中斷**。待 GA4／Meta／交易信帳號取得後，僅需將對應數值填入 `.env` 即可啟用，無需修改程式碼。
 
@@ -84,8 +84,9 @@ Next.js（App Router + TypeScript）全端專案：
 | CMS 範圍擴及 Banner 上傳、活動資訊 | v3 §6.2；桌機／手機 Banner 圖片上傳（精確尺寸校驗）＋活動資訊四張卡片後台編輯 | ✅ **已實作並驗證**（[`add-banner-event-info-cms`](openspec/changes/archive/2026-08-06-add-banner-event-info-cms/)，見下方「內容管理」） |
 | **GTM／GA4 憑證到位，GA4 主轉換事件改為 GTM 端設定** | 0805/0806 文件更新：GTM 容器＋GA4 ID 已提供，內部 Tag／Trigger 改由鼎東維護；`generate_lead` 取代原規劃的 `registration_submit` 自訂事件（GTM 容器代碼於 2026/08/06 下午定案為湧現／Lindy 自建之 `GTM-M6P5QTRM`，取代上午暫緩的 `GTM-M583KSV7`） | ✅ **已實作並驗證**（[`update-tracking-integration`](openspec/changes/archive/2026-08-06-update-tracking-integration/)，見下方「追蹤事件字典」） |
 | **講者照片／夥伴 Logo 改為檔案上傳；夥伴拆分主辦／協辦單位** | 2026/08/06 QA（Lindy）測試回報：講者、夥伴需要真正的檔案上傳（不再貼網址）；夥伴需拆分「主辦單位」（今晧實業、湧現智庫）與「協辦單位」，落地頁對應拆成兩個區塊 | ✅ **已實作並驗證**（[`add-speaker-partner-upload`](openspec/changes/archive/2026-08-07-add-speaker-partner-upload/)，見上方「內容管理」） |
+| **公關帳號開放整批匯出 Excel 權限** | 2026/08/07 直接指示：放寬 v3 §6.9「全量含個資之名單匯出由我方控管後再提供」的限制，公關需要直接匯出給報名公司，經確認後刻意反轉原本 CTO 限定的設計 | ✅ **已實作並驗證**（[`open-export-to-pr-role`](openspec/changes/archive/2026-08-07-open-export-to-pr-role/)，見下方「名單匯出」） |
 
-**目前狀態：議程管理、個別帳號、Excel 匯出、講者／夥伴／亮點 CMS、表單選項清單 CMS、Banner 上傳／活動資訊 CMS、講者夥伴檔案上傳與夥伴分類 八項已完成並歸檔；新子網域部署尚未動工**，避免一次把不相關的能力全部混進同一個 change。
+**目前狀態：議程管理、個別帳號、Excel 匯出、講者／夥伴／亮點 CMS、表單選項清單 CMS、Banner 上傳／活動資訊 CMS、講者夥伴檔案上傳與夥伴分類、公關匯出權限放寬 九項已完成並歸檔；新子網域部署尚未動工**，避免一次把不相關的能力全部混進同一個 change。
 
 ## 角色與分工
 
@@ -117,7 +118,7 @@ flowchart TD
   THX -.-|"GTM 依此頁網址比對觸發<br/>generate_lead／Meta Lead（外部設定）"| GTM
   DB --> ADMIN["🔵 CTO · /admin<br/>查詢／篩選／標記／重寄信"]
   ADMIN -.日常操作（PR 角色帳號）.-> PRUSER["🩷 公關（個別帳號登入）"]:::pr
-  DB --> EXPORT["🔵 CTO 角色專用匯出（.xlsx）<br/>CLI／EXPORT_TOKEN 或 /admin 內建按鈕，皆記錄稽核紀錄"]
+  DB --> EXPORT["匯出（.xlsx）<br/>CLI／EXPORT_TOKEN 為 🔵 CTO 專用；/admin 內建按鈕 2026/08/07 起 CTO／PR 皆可用，皆記錄稽核紀錄"]
   EXPORT -.交付名單.-> RAGIC["🟣 公司 · Ragic<br/>Phase B，目前為 no-op"]:::company
 
   classDef ext fill:#F1EFE8,stroke:#B4B2A9,color:#2C2C2A;
@@ -174,7 +175,7 @@ seminar_apply/
 │        ├─ banner/route.ts                     # 🔵 GET 目前 Banner／POST 上傳（桌機／手機分開，含尺寸校驗）
 │        ├─ event-info/route.ts · event-info/[field]/route.ts  # 🔵 GET 四張卡片／PATCH 單張（無 POST/DELETE，固定 4 格）
 │        ├─ accounts/route.ts · accounts/[id]/route.ts  # 🔵 CTO-only：帳號列表／新增／停用／重設密碼
-│        └─ export/route.ts                     # 🔵 CTO 角色限定，session 驗證，寫入稽核紀錄
+│        └─ export/route.ts                     # session 驗證（2026/08/07 起 CTO／PR 皆可用），寫入稽核紀錄
 ├─ components/                                 # RegistrationForm, ConsentBanner, GtmLoader, AdminTable, AgendaTable, SpeakerTable, PartnerTable, HighlightTable, FormOptionsTable, PartnerWall, AccountsTable, AddToCalendar, BannerUploader, EventInfoTable...
 ├─ lib/
 │  ├─ prisma.ts · session.ts · auth.ts · gtm.ts · utm.ts
@@ -264,7 +265,7 @@ npm run dev              # http://localhost:3000
 
 1. 前往 `/admin`，未登入將導向 `/admin/login`，輸入 email／密碼登入——**個別帳號，不再共用一組密碼**（對照文件 v3 §6.9）。
 2. 功能涵蓋：依姓名／公司／Email 搜尋、依 `utm_source`／`utm_content`／處理狀態篩選、標記已處理／未處理、對單筆資料重寄確認信；此部分 CTO／PR 兩角色皆可使用。
-3. **不提供**刪除功能；**整批匯出僅 CTO 角色可見可用**，PR 角色即使直接呼叫匯出 API 也會收到 403（詳見 openspec 之 `admin-console`／`data-export` spec）。
+3. **不提供**刪除功能。整批匯出（`/admin` 內建按鈕）**2026/08/07 起 CTO／PR 皆可用**——這是刻意放寬交接文件 §6.9「全量含個資之名單匯出由我方控管後再提供」的限制，經與你確認是直接指示（公關需要直接匯出給報名公司，不用每次都經過 CTO 轉交），非工程端自行決定；帳號管理仍僅 CTO 可進入（詳見 openspec 之 `admin-console`／`data-export` spec，`add-admin-accounts` 原始設計與 `2026-08-07-open-export-to-pr-role` 這次的放寬異動皆已歸檔）。
 4. 帳號管理（新增帳號、停用／啟用、重設密碼）僅 CTO 角色可進入，見下方「帳號管理」。
 5. 每次登入與每次匯出動作皆寫入稽核紀錄（`AdminAuditLog`），記錄操作帳號與時間。
 
@@ -322,7 +323,7 @@ npm run dev              # http://localhost:3000
 npm run export:registrations   # 產出 exports/registrations-YYYY-MM-DD.xlsx（已列入 .gitignore，內含個資請勿外流）
 ```
 
-或在 `/admin` 頁面上以 CTO 帳號登入後，直接點「匯出 Excel」按鈕（呼叫 `/api/admin/export`，session 驗證，PR 角色帳號看不到此按鈕、直接呼叫 API 也會收到 403）；也可用 `GET /api/export?token=<EXPORT_TOKEN>` 供 CLI／排程使用。兩條路徑皆會在 `AdminAuditLog` 留下一筆 `export` 紀錄。
+或在 `/admin` 頁面上登入後，直接點「匯出 Excel」按鈕（呼叫 `/api/admin/export`，session 驗證；**2026/08/07 起 CTO／PR 皆可看到並使用此按鈕**，見上方「與原型 HTML 差異」的說明）；也可用 `GET /api/export?token=<EXPORT_TOKEN>` 供 CLI／排程使用，這條路徑仍只有拿得到 `EXPORT_TOKEN` 的人（即 CTO）能用。兩條路徑皆會在 `AdminAuditLog` 留下一筆 `export` 紀錄，記錄實際操作的帳號，因此即使 PR 也能匯出，仍可追溯是誰做的。
 
 ---
 
@@ -446,4 +447,7 @@ SQLite 是單一檔案（`prisma/dev.db`），寫入的資料就存在「跑這�
 | 表單選項清單 CMS（`/admin/form-options`） | `done` | 對照交接文件 v3 §6.2；範圍限定選項清單（非完整表單建構器，已與你確認）；報名驗證 schema 改為依當下選項動態建立並已驗證與落地頁同步、拒絕已刪除的舊選項值、最後一個選項不可刪除 |
 | Banner 上傳／活動資訊 CMS（[`openspec/changes/archive/2026-08-06-add-banner-event-info-cms/`](openspec/changes/archive/2026-08-06-add-banner-event-info-cms/)） | `done` | 對照交接文件 v3 §6.2；OpenSpec 規格＋實作皆完成，`/admin/banner`（桌機 2560×1440／手機 1080×1350 精確尺寸校驗、換圖即刪舊檔）與 `/admin/event-info`（固定 4 張卡片編輯）已於瀏覽器驗證，`npm run build` 通過。過程中發現並修正一個 CSS specificity 缺陷（桌機／手機圖片切換選擇器優先度不足，兩張圖曾同時顯示），已修正並重新驗證兩種視窗寬度 |
 | 講者照片／夥伴 Logo 檔案上傳＋夥伴主辦/協辦分類（[`openspec/changes/archive/2026-08-07-add-speaker-partner-upload/`](openspec/changes/archive/2026-08-07-add-speaker-partner-upload/)） | `done` | 2026/08/06 QA（Lindy）回報；講者照片≥520×520、夥伴 Logo PNG≥800px 寬，皆為檔案上傳（沿用 Banner 上傳基礎建設）；夥伴拆分「主辦單位」（今晧實業、湧現智庫，固定）／「協辦單位」，落地頁與後台皆拆成兩個區塊，排序各自獨立。過程中發現並修正一個既有缺口：刪除講者／夥伴時原本沒有清除已上傳的檔案，已補上，重新驗證刪除後磁碟無殘留 |
+| 正式站上傳圖片全部 404（重大 bug 修復） | `done` | 2026/08/07 Lindy 回報上傳照片破圖；查出 `next start` production 模式不會動態發現執行期間新寫入 `public/` 的檔案，新增 `app/uploads/[...path]/route.ts` 直接讀硬碟繞過此限制；本機用真正的 production build 重現＋驗證修復，已 push，待 redeploy 上線後三張既有破圖應自動修復（檔案本就在硬碟上，不需重新上傳） |
+| 公關帳號開放整批匯出 Excel 權限（[`openspec/changes/archive/2026-08-07-open-export-to-pr-role/`](openspec/changes/archive/2026-08-07-open-export-to-pr-role/)） | `done` | 2026/08/07 直接指示放寬 v3 §6.9 限制；`/admin` 內建匯出按鈕 CTO／PR 皆可用，CLI（`EXPORT_TOKEN`）路徑仍僅 CTO；已用真正的 production build 驗證 PR 匯出成功且稽核紀錄正確歸屬操作帳號，帳號管理仍僅 CTO 可進入 |
+| 講者「更換照片」／夥伴「更換 Logo」按鈕樣式 | `done` | 原本用 `<label>` 包裹檔案輸入框，CSS 選擇器只認 `<button>`，畫面上看起來像純文字；改成真正的 `<button>` 觸發隱藏的檔案輸入框，已於瀏覽器驗證樣式與其他按鈕一致 |
 | 新子網域部署 | `open` | 已記錄於「交接文件 v3 更新對照」，純部署/DNS 層級，非工程範圍 |

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 interface Speaker {
   id: string;
@@ -28,6 +28,7 @@ export function SpeakerTable() {
   const [formError, setFormError] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
+  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   // silent=true skips the loading flash (used after create/edit/delete/reorder,
   // where we already have data on screen and don't want the table to blank out).
@@ -258,20 +259,29 @@ export function SpeakerTable() {
                             "待提供"
                           )}
                         </span>
-                        <label className="small" style={{ cursor: "pointer", width: "fit-content" }}>
+                        <input
+                          ref={(el) => {
+                            fileInputRefs.current[item.id] = el;
+                          }}
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          style={{ display: "none" }}
+                          disabled={uploadingId === item.id}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            e.target.value = "";
+                            if (file) uploadPhoto(item.id, file);
+                          }}
+                        />
+                        <button
+                          type="button"
+                          className="small"
+                          style={{ width: "fit-content" }}
+                          disabled={uploadingId === item.id}
+                          onClick={() => fileInputRefs.current[item.id]?.click()}
+                        >
                           {uploadingId === item.id ? "上傳中…" : item.photoUrl ? "更換照片" : "上傳照片"}
-                          <input
-                            type="file"
-                            accept="image/jpeg,image/png,image/webp"
-                            style={{ display: "none" }}
-                            disabled={uploadingId === item.id}
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              e.target.value = "";
-                              if (file) uploadPhoto(item.id, file);
-                            }}
-                          />
-                        </label>
+                        </button>
                         {uploadErrorId === item.id && <p className="admin__error">{uploadError}</p>}
                       </div>
                     </td>

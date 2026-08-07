@@ -11,9 +11,7 @@ export default async function AdminPage() {
       <div className="admin__head">
         <div>
           <h1 style={{ color: "#14231b", fontSize: 24 }}>報名後台</h1>
-          <p style={{ color: "#5f7268", fontSize: 13 }}>
-            可查看、搜尋、篩選、標記處理狀態、重寄確認信。無刪除、無整批匯出（公關角色）。
-          </p>
+          <p style={{ color: "#5f7268", fontSize: 13 }}>可查看、搜尋、篩選、標記處理狀態、重寄確認信。無刪除功能。</p>
         </div>
         <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
           <a className="btn btn--ghost" href="/admin/agenda">
@@ -37,15 +35,13 @@ export default async function AdminPage() {
           <a className="btn btn--ghost" href="/admin/event-info">
             管理活動資訊
           </a>
+          <a className="btn btn--primary" href="/api/admin/export">
+            匯出 Excel
+          </a>
           {isCto && (
-            <>
-              <a className="btn btn--ghost" href="/admin/accounts">
-                帳號管理
-              </a>
-              <a className="btn btn--primary" href="/api/admin/export">
-                匯出 Excel
-              </a>
-            </>
+            <a className="btn btn--ghost" href="/admin/accounts">
+              帳號管理
+            </a>
           )}
           <LogoutButton />
         </div>

@@ -1,18 +1,4 @@
-# data-export Specification
-
-## Purpose
-Gets the full registration list out to Lindy/Ragic through a CTO-controlled path, kept deliberately separate from the PR-facing admin console so the "no bulk export for PR" constraint holds structurally, not just by omission.
-## Requirements
-### Requirement: Ragic sync is a configuration-gated no-op until credentials exist
-The system SHALL provide a Ragic sync integration point that does nothing (no-op, logged) when no Ragic API token is configured, and SHALL NOT be invoked from the registration or admin request paths in a way that could fail them.
-
-#### Scenario: No Ragic token configured
-- **WHEN** a registration succeeds and no Ragic API token is configured
-- **THEN** no outbound request to Ragic is made, and neither the registration nor the admin console is affected
-
-#### Scenario: Ragic token configured (future)
-- **WHEN** a Ragic API token is configured
-- **THEN** the sync integration point sends the registration's fields to Ragic without requiring changes to the registration or admin code paths
+## MODIFIED Requirements
 
 ### Requirement: Full-list export is reachable by CTO-role sessions, including from within /admin
 The system SHALL provide a way to export the full registration list as `.xlsx` that is available to any authenticated `/admin` session (CTO or PR role), either through an authenticated CLI/script path (token-based, unchanged mechanism) or through a control inside `/admin`. PR-role sessions are no longer excluded (confirmed 2026/08/07: PR needs to export directly to registering companies, deliberately reversing the original CTO-only restriction).
@@ -32,4 +18,3 @@ The system SHALL provide a way to export the full registration list as `.xlsx` t
 #### Scenario: Unauthenticated request
 - **WHEN** a request to the in-admin export control is made without a valid admin session
 - **THEN** the export is not accessible (existing session-auth middleware coverage, unrelated to role)
-

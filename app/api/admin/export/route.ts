@@ -4,13 +4,16 @@ import { getCurrentAccount } from "@/lib/auth";
 import { buildRegistrationsWorkbook, workbookToBuffer, exportFileName } from "@/lib/export-workbook";
 
 // The in-/admin export button from CTO handoff doc v3 §6.3 ("後台可...一鍵匯出
-// Excel"), gated by session role rather than a token since this is meant to be
-// clicked from inside the browser, not scripted. PR-role sessions get 403 -
-// same underlying data as /api/export, different authentication story.
+// Excel"). Originally CTO-only per handoff doc §6.9 ("全量含個資之名單匯出由我方
+// 控管後再提供"); opened to PR-role sessions too on 2026/08/07 per direct user
+// instruction (openspec: open-export-to-pr-role) - PR needs to export directly
+// to hand lists to registering companies. Still requires a valid session at
+// all; every export is still attributed via AdminAuditLog below regardless
+// of role, so this only removes the role restriction, not accountability.
 export async function GET() {
   const me = await getCurrentAccount();
-  if (!me || me.role !== "CTO") {
-    return NextResponse.json({ error: "僅 CTO 可匯出" }, { status: 403 });
+  if (!me) {
+    return NextResponse.json({ error: "請先登入" }, { status: 401 });
   }
 
   try {

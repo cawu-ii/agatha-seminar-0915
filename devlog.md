@@ -609,3 +609,25 @@
 **驗證方式：** 這個 bug 只有 production 模式才會重現，本機一直用 `npm run dev` 測試當然測不出來，所以這次刻意在本機跑一次**真正的 production build**（`npm run build && npm run start`，確保跟正式站一樣、`public/uploads/` 在 build 當下是空的）：伺服器啟動後，用 API 建一個測試講者、上傳一張照片，**不重啟伺服器**、立刻重新請求該圖片網址，確認回傳 200 且 `Content-Type: image/jpeg`（修正前這一步在 production 模式下會是 404，這正是 Lindy 回報的那個情境）。測試講者與圖片事後皆已刪除清理乾淨。正式站那 3 張破圖，程式碼部署＋重啟後應該會直接自動修好（檔案本來就好好躺在硬碟上，不需要重新上傳）——這點會在部署後另外請你確認一次。
 
 **同步更新：** 本則 Phase 36 devlog。沒有開新的 OpenSpec change——`banner-cms`／`speakers-cms`／`partners-cms` 的既有規格本來就寫「上傳後圖片會出現在落地頁」，這次是修正一個讓這條既有規格失效的環境層級 bug，不是改變規格本身要求的行為。
+
+## Phase 37 — 上傳按鈕樣式修正＋公關開放整批匯出 Excel 權限（`open-export-to-pr-role` 落地）（2026-08-07）
+
+**做了什麼：** 兩件事，都是這次 session 一路做下來累積的小尾巴，趁今天一起收掉。
+
+- **講者「更換照片」／夥伴「更換 Logo」按鈕樣式**：這兩個按鈕當初是用 `<label className="small">` 包一個隱藏的 `<input type="file">`，靠點擊 label 觸發檔案選取視窗。但 `globals.css` 裡對應的樣式規則是 `.admin button.small`，**只認 `<button>` 元素**，`<label>` 不會套到任何樣式，畫面上看起來就是一段純文字，不像可以點的按鈕。改成真正的 `<button type="button">`，透過 `useRef` 存每一列對應的 `<input type="file">`，按鈕的 `onClick` 呼叫 `fileInputRefs.current[item.id]?.click()` 觸發隱藏的檔案輸入框——`<input>` 還是隱藏著，只是現在由一個有正確樣式的按鈕去觸發它，而不是靠 `<label>` 的原生包裹行為。`SpeakerTable.tsx`、`PartnerTable.tsx` 兩個檔案都做了同樣的修正。
+
+- **公關帳號開放整批匯出 Excel 權限**：你直接指示要放寬——公關需要能直接匯出名單給報名公司，不用每次都透過 CTO 轉交。這跟交接文件 v3 §6.9「全量含個資之名單匯出由我方控管後再提供」的字面要求剛好相反，先把這個衝突攤開來跟你確認過，你確認是刻意要反轉這個限制，不是我看漏了什麼，才動手做。照這個專案一貫的作法開了一個 OpenSpec change（`open-export-to-pr-role`），data-export／admin-console 兩個 capability 各自的相關 requirement 都寫了對應的 delta（`admin-console` 那條「不提供整批匯出」直接用 REMOVED，因為機制整個被撤銷，不是改個描述）。design.md 記錄了這個決定背後的權衡：個資風險是接受的 trade-off（使用者已明確確認），稽核紀錄本來就會記錄操作帳號，權限放寬不影響「事後查得到是誰做的」這件事。
+  - 程式碼異動很單純：`app/api/admin/export/route.ts` 把 `me.role !== "CTO"` 那個判斷拿掉，只留「有沒有登入」；`app/admin/page.tsx` 把「匯出 Excel」連結從 `isCto &&` 的區塊裡搬出來，跟其他內容管理連結放一起，「帳號管理」則繼續留在 CTO 專屬區塊。CLI 用的 `/api/export?token=` 路徑完全沒動，那是另一組獨立的憑證（`EXPORT_TOKEN`），不受這次異動影響，依然只有握有這個 token 的人（CTO）能用。
+
+**驗證過程中的插曲：** 第一輪驗證時發現 PR 帳號呼叫匯出還是回 403、還是舊的錯誤訊息「僅 CTO 可匯出」——但直接讀原始碼確認 `export/route.ts` 早就已經改對了。追查後發現是**本機 `.next` build cache 沒有正確反映最新的原始碼**，刪掉整個 `.next` 資料夾重新 `npm run build` 之後，錯誤訊息字串從編譯產物裡消失，問題排除。這不是程式碼的問題，是本機這次 build 流程本身卡到快取，跟今天 Phase 36 那個「production 模式不會動態發現新檔案」是兩個完全不同的問題，不要搞混。另外測試過程中還踩到一次：先前建立的 PR 測試帳號在某次 `Stop-Process -Force` 強制關閉伺服器行程時似乎連帶遺失了寫入（SQLite 沒來得及把交易寫進去），重新建一個測試帳號後正常。
+
+**驗證方式：**
+1. `npm run build` 過。
+2. 在本機起一個真正的 production 伺服器（`next start`，這次特意避開本機另一個常駐服務占用的 3003 port，改用 3010 測試，跟正式環境用哪個 port 無關，純粹避免本機環境衝突），登入 CTO 帳號建立一個全新的 PR 測試帳號。
+3. 用該 PR 帳號登入，呼叫 `/api/admin/export`，確認回傳 200 與正確的 `.xlsx` content-type（修正前是 403）。
+4. 直接查詢 `AdminAuditLog`，確認這筆匯出正確記錄了操作帳號是那個 PR 測試帳號、角色 PR——證實「放寬權限」跟「維持可追溯性」兩件事同時成立。
+5. 確認 PR 帳號呼叫 `/api/admin/accounts`（帳號管理）依然回 403，沒有被這次異動波及。
+6. 確認未登入呼叫匯出依然被導回登入頁（既有 middleware 涵蓋範圍，跟角色無關）。
+7. 測試用的 PR 帳號依「停用而非刪除」的既有慣例停用，不刪除。
+
+**同步更新：** `openspec/changes/open-export-to-pr-role/tasks.md` 全部項目勾選並補上驗證備註（含上面提到的 build cache 插曲），`openspec validate --strict` 過後歸檔為 `2026-08-07-open-export-to-pr-role`。README 多處更新：與原型 HTML 差異表、v3 更新對照表新增一列、系統資料流圖匯出節點標籤、帳號管理章節文字（拿掉「PR 無整批匯出」的舊敘述，改記錄這次的放寬與原因）、名單匯出章節說明、專案結構註解、專案進度追蹤表新增兩列（這次的權限放寬＋按鈕樣式修正）。
