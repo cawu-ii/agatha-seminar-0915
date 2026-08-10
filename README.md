@@ -305,7 +305,7 @@ Lindy 提供了一份設計好的 HTML 版型（原始檔另外交付，未進�
 
 對照交接文件 v3 §6.2，CTO／PR 皆可操作，這是本專案第一個真正的檔案上傳功能：
 
-- **Banner 上傳**：桌機版（需精確 2560×1440）與手機版（需精確 1080×1350）各自獨立上傳，落地頁依裝置寬度（`860px` 斷點）切換顯示對應圖片；未上傳時 Hero Banner 區塊整個不顯示，不影響原本的 Hero 底色與文字。
+- **Banner 上傳**：桌機版（需精確 2560×1440）與手機版（需精確 1080×1350）各自獨立上傳，落地頁依裝置寬度（`860px` 斷點）切換顯示對應圖片。**桌機／手機兩張圖都上傳完成後，會取代原本程式碼寫死的 Hero 區塊**（標題、副標、日期時間、標籤、按鈕等），改成完整顯示你上傳的圖片，不會兩者同時出現（2026/08/10 修正：先前只要上傳任一張圖，程式碼寫死的 Hero 內容還是會照樣顯示在圖片下方，變成「兩塊 banner」疊在一起）；**只上傳其中一張時，為避免另一個裝置寬度看到空白，程式碼寫死的 Hero 區塊仍會保留顯示**，直到兩張都上傳完成才會被取代。
 - **尺寸不符直接拒絕上傳**，錯誤訊息會明確列出「需要的尺寸」與「收到的尺寸」，不做伺服器端自動裁切／壓縮——這是與你確認過的決策（2026/08/05），避免自動裁切裁到不該裁的地方。
 - **換圖即刪除舊檔**：重新上傳同一個插槽（桌機或手機）會立即刪除硬碟上的舊檔案，不保留版本紀錄，避免磁碟無限累積。
 - **後台不提供預覽功能**：上傳成功後請直接開啟落地頁確認顯示效果，這是刻意精簡的決策，不是遺漏。
@@ -426,6 +426,7 @@ SQLite 是單一檔案（`prisma/dev.db`），寫入的資料就存在「跑這�
 5. ~~GTM／GA4 真實 ID 已提供（`GTM-M583KSV7`／`G-C2D5DC3DLS`）~~——**2026/08/06 下午最終定案**：0806 下午版交接文件確認 GTM 容器改由湧現內部（Lindy）自建 `GTM-M6P5QTRM`（取代上午暫緩的 `GTM-M583KSV7`），CTO 安裝範圍為 **Landing Page**（非全站），鼎東取得 Editor 權限、範圍限定 Meta／Digitimes；GA4 ID 仍為 `G-C2D5DC3DLS`。**待部署時填入 `.env` 的 `NEXT_PUBLIC_GTM_ID`**，本機 `.env` 目前仍為空值。
 6. **（2026/08/06 新增，已確認無需異動）主管指示確認信寄件人須為 `service@emergence.today`**——查核 `lib/integrations/email.ts` 與 `.env` 皆已使用此位址（`EMAIL_FROM` 預設值與現有設定一致），**程式碼與設定皆已符合，無需修改**。
 7. ~~公關公司是否應有 CMS 權限～與交接文件 §9 checklist「不提供公關公司 CMS 權限」是否衝突~~——**已確認（2026/08/06）**：「公司公關」（Lindy，湧現內部）與「公關公司」（鼎東，外部代理商）是兩個不同對象；PR 角色帳號（CMS 完整權限）僅提供給 Lindy，鼎東不持有本專案任何帳號，與 checklist 要求一致，**不衝突，無需調整權限程式碼**。
+8. ~~Lindy 回報 GTM 容器疑似安裝失敗（Console 檢查 `dataLayer` 沒有 `gtm.js` 事件、`google_tag_manager` 是 undefined）~~——**已查證（2026/08/10）：非程式碼問題，是同意橫幅的預期行為**。GTM 依設計採「先同意才載入」（`components/GtmLoader.tsx`），使用者尚未點擊落地頁的「我同意」按鈕之前，`dataLayer` 本來就只會有手動 push 的 `cta_click`，GTM 容器本身完全不會被注入——這是符合隱私規範故意做的節流，不是安裝失敗。直接在正式站實測：**點擊「我同意」之後，`google_tag_manager` 物件、`gtm.js`／`gtm.dom`／`gtm.load` 事件、Meta Pixel noscript 標籤全部正常出現**，容器 ID 正確為 `GTM-M6P5QTRM`。Lindy 用 Console 檢查時應是在尚未點擊同意的狀態下測試，才會看到「沒有載入」的結果；已請她之後測試前先點一次「我同意」再檢查。
 
 ---
 
@@ -485,4 +486,5 @@ SQLite 是單一檔案（`prisma/dev.db`），寫入的資料就存在「跑這�
 | 封存報名資料（CTO 專屬，[`openspec/changes/archive/2026-08-07-add-cto-archive-registrations/`](openspec/changes/archive/2026-08-07-add-cto-archive-registrations/)） | `done` | 你要求刪除測試報名資料後，比照帳號管理「停用而非刪除」的作法新增：CTO 可封存／取消封存單筆報名資料，封存後從預設清單與所有匯出隱藏、資料庫底層不刪除；PR 角色完全看不到此功能（API 層拒絕，非僅隱藏 UI）。已用真正的 production build 驗證封存／取消封存、匯出排除、PR 403、無任何程式碼路徑呼叫 `delete`；另提供 `scripts/archive-test-registrations.ts` 供你直接在 EC2 上封存正式站現有測試資料，待 redeploy 後執行 |
 | 手機版 Hero 區塊排版（第二次調整） | `done` | 2026/08/07：你回報第一次的間距微調（`padding-top:56px`／`.chips margin-top:28px`／`.hero__cta margin-top:36px`）效果不夠明顯，畫面仍偏擠。第二次調整改變策略：不是每個區塊平均加一點間距，而是讓「標題群組」（標語／標題／副標）維持緊湊，「時間地點」與「CTA 按鈕」前各拉開明顯間距（`.hero__event margin-top:38px`、`.hero__cta margin-top:46px`），讓畫面讀起來是 3 個分組而非 6 行等距文字；外層 padding 同時收緊（`40px/40px`），整體高度與調整前接近，但分組更清楚。已用 `getComputedStyle`／`getBoundingClientRect` 於 375px（新數值）與 1280px（桌機數值 `70px/66px` 等完全不變）兩種寬度驗證，`npm run build` 通過 |
 | 報名確認信改用 HTML 版型＋收件人姓名動態代入 | `done` | 2026/08/07：Lindy 希望確認信更好看，提供設計好的 HTML 版型；你也指出信中「框起來」的收件人姓名不可寫死，須依實際報名人變化。新增 [`lib/integrations/email-templates/registration-confirmation.html`](lib/integrations/email-templates/registration-confirmation.html)（Lindy 原始設計檔，僅把姓名行換成 `{{REGISTRANT_NAME}}` 佔位字串），寄信時讀取版型並代入該筆報名的實際姓名（**HTML escape 過**，防止姓名欄位內容破壞信件排版或造成注入），Resend／Gmail SMTP 兩條路徑皆已改帶 `html` 欄位，並保留純文字版作為 fallback。**第一版實際寄出後你回報收信變成一整串 HTML 原始碼**——查出是版型裡內嵌的一張 base64 圖片（約 38 萬字元、僅一行）在傳輸過程中被中繼郵件伺服器插入不該有的換行、打斷了 HTML 屬性引號配對；已改為把圖片還原成真正的 PNG 檔案（`public/email-assets/hero-bg.png`）並用外部網址引用，整封信從約 400KB 降到約 16KB，重新驗證單行最長字元數已遠低於容易觸發此問題的門檻 |
+| Banner／Hero 區塊重複顯示（bug 修復） | `done` | 2026/08/10 Lindy 回報上傳新 banner 後畫面出現「兩塊 banner」；查出是實作沒有依照已核准的 `banner-cms` spec（該 spec 明確寫「以圖片取代原本的 CSS Hero」）——程式碼原本不論有沒有上傳圖片都一律顯示寫死的 Hero 內容，跟新上傳的圖片同時疊在畫面上。修正為：桌機／手機兩張圖都上傳完成後才隱藏寫死的 Hero 內容；只上傳一張時仍保留 Hero 內容顯示，避免另一裝置寬度看到空白。已用本機資料庫分別模擬「兩張都上傳」「只上傳一張」「都沒上傳」三種狀態驗證，並確認導覽列與右下角浮動的報名按鈕不受影響、仍可正常導向報名區塊 |
 | 新子網域部署 | `open` | 已記錄於「交接文件 v3 更新對照」，純部署/DNS 層級，非工程範圍 |

@@ -38,6 +38,12 @@ export default async function SeminarLandingPage() {
   // No banner uploaded yet -> banner stays null -> the existing CSS-only
   // hero renders exactly as before (the required fallback).
   const banner = await prisma.banner.findUnique({ where: { id: "singleton" } }).catch(() => null);
+  // Spec (banner-cms) says the uploaded banner image replaces the CSS-only
+  // hero, not both at once - require both slots filled before hiding the
+  // CSS hero, so a half-finished upload (only one viewport size done) never
+  // leaves the other viewport with nothing in that spot (openspec:
+  // banner-cms "Landing page renders the hero banner from stored data").
+  const hasFullBanner = Boolean(banner?.desktopUrl && banner?.mobileUrl);
   const eventInfoFacts = await prisma.eventInfo.findMany().catch(() => []);
   const eventInfoByField = Object.fromEntries(eventInfoFacts.map((f) => [f.field, f]));
 
@@ -69,6 +75,7 @@ export default async function SeminarLandingPage() {
         </div>
       )}
 
+      {!hasFullBanner && (
       <section className="hero">
         <div className="hero__fx">
           <div className="dotgrid" />
@@ -188,6 +195,7 @@ export default async function SeminarLandingPage() {
           </div>
         </div>
       </section>
+      )}
 
       <section className="sec" style={{ paddingTop: 8 }}>
         <div className="wrap ta">

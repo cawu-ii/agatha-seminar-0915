@@ -692,3 +692,28 @@
 5. 驗證用的暫存檔案（暫時放到 `public/` 底下方便瀏覽器打開的預覽檔、一次性解碼腳本）驗證完都刪除，沒有留在專案裡。
 
 **注意：** 這次修正只解決「內嵌圖片導致信件破版」這個問題本身；真正的「收件人實際收到信、畫面正常」這件事，因為工程端沒有你的信箱收件權限，最終還是要請你這次重新測試一次確認。另外這也是一個值得記住的教訓：**HTML email 用內嵌 base64 圖片本來就是業界公認不建議的作法**（不只是這次遇到的傳輸斷行問題，Outlook 桌面版等多個信箱用戶端本來就不支援 data: URI 圖片，就算沒破版也會直接看不到圖），之後如果 Lindy 或其他人再提供新的信件版型設計檔，內嵌圖片這件事要在套用前就先處理掉，不要等寄出去才發現。
+
+## Phase 41 — W2 8/10：Banner／Hero 重複顯示 bug 修復＋GTM 疑似安裝失敗查證（2026-08-10）
+
+**起因：** 進入第二週，Lindy 這次一口氣帶了三件事：（1）她說「新的 banner 新增後希望可以把舊的覆蓋掉」；（2）附了一張截圖，紅框框住畫面上一大塊區域，說這是「舊的 banner 區塊」，希望刪掉；（3）轉發了她自己用瀏覽器 Console 排查 GTM 的完整記錄，判斷 GTM 容器沒有正確載入，要求盡快確認修復，避免報名轉換數據漏追。
+
+**Banner／Hero 重複顯示——查出來其實是同一個 bug，不是兩個各別需求：** 一開始看到「希望覆蓋掉」跟「希望刪除某個區塊」兩句話，容易誤以為是要新增一個功能（例如「上傳新圖時提示是否覆蓋」之類的確認機制）。但實際打開 `app/seminar/0915/page.tsx` 對照 Lindy 附的截圖紅框位置，發現紅框框住的其實就是**專案裡本來就寫死在程式碼裡的 Hero 區塊**（標語、標題、副標、日期時間、標籤、兩顆按鈕）——而這個區塊，跟 8/6 做的 Banner 上傳功能（`/admin/banner`）是**完全獨立、各自渲染的兩塊東西**，沒有任何互斥邏輯。
+
+回頭查 [`openspec/specs/banner-cms/spec.md`](openspec/specs/banner-cms/spec.md)（8/6 那次已核准歸檔的規格），第一條 Requirement 白紙黑字寫著：「The system SHALL render the landing page's hero section banner image from stored data ... **instead of** the current CSS-only hero visual」，Scenario 也寫「沒有上傳 banner 時才 fallback 回 CSS-only 視覺」——換句話說，**規格從一開始就是「上傳的圖片取代寫死的 Hero，不是兩者並存」**，但 `page.tsx` 的實際程式碼裡，那段寫死的 `<section className="hero">` 完全沒有依照 `banner` 是否有值去包一層條件式，不論有沒有上傳圖片都無條件渲染。這是一個**跟已核准規格對不上的實作缺口**，不是新的設計討論，所以不需要重新走一輪 proposal/design 的 OpenSpec 流程，直接當 bug 修（比照 Phase 36 上傳 404 那次的處理方式）。
+
+直接連正式站用瀏覽器量了一下實際渲染結果，證實現在正式站上 `banner.desktopUrl`／`banner.mobileUrl` 兩個欄位其實都已經有值（Lindy 兩張圖都上傳完成了），畫面依序是：導覽列 → 上傳的 banner 圖片（711px 高）→ 緊接著寫死的 Hero 內容又重複一次（563px 高）→ 其餘頁面內容。跟截圖對得上。
+
+**修正：** 在 `app/seminar/0915/page.tsx` 新增 `hasFullBanner = Boolean(banner?.desktopUrl && banner?.mobileUrl)`，把整段寫死的 `<section className="hero">...</section>` 包進 `{!hasFullBanner && (...)}`。這裡刻意用「兩張都要有」而不是「任一張有就好」——如果只用「任一張」判斷，遇到 Lindy只上傳完一半（例如先傳完桌機版、手機版還沒傳）的過渡狀態，會變成「只有其中一個裝置寬度看得到東西，另一個裝置寬度直接開天窗看到空白」，這比現在的「重複顯示」還要糟。用「兩張都要有」當作切換條件，未上傳完整之前維持現狀（可能還是會重複，但至少不會開天窗），兩張都補齊之後才整個切換成新版。
+
+**驗證方式：**
+1. `npm run build` 過。
+2. 本機資料庫沒有 banner 資料（`null`），起 dev server 確認 Hero 區塊正常顯示、`.hero-banner` 不存在——fallback 情境沒有被這次改動破壞。
+3. 寫一支一次性腳本把本機 `Banner.singleton` 兩個欄位都填上假路徑，重新整理頁面，確認 `.hero` 消失、`.hero-banner` 出現，同時確認導覽列的「立即申請報名」按鈕與右下角浮動的「立即報名」按鈕都還在、沒有被這次改動波及（這兩個是除了 Hero 區塊本身以外，頁面上僅剩的其他報名入口，確認拿掉 Hero 內容不會讓使用者找不到路徑報名）。
+4. 把資料庫改成只填桌機欄位（模擬上傳到一半的過渡狀態），確認 `.hero` 跟 `.hero-banner` 同時存在——符合「兩張都要有才切換」的設計，這個過渡狀態下寧可維持現狀也不要讓手機版開天窗。
+5. 測試用的假 banner 資料驗證完全部清除，本機資料庫恢復成 `null`（乾淨狀態）。
+
+**GTM 疑似安裝失敗——實測後確認是預期行為，不是 bug：** Lindy 轉發的診斷記錄本身的排查方法完全正確（檢查 `dataLayer`、`google_tag_manager`、view-source 找 GTM 標籤、Network 分頁找 `gtm.js` 請求），但沒有提到她是在什麼狀態下做的這次檢查。直接到正式站重現：**開一個全新瀏覽器分頁（沒有任何 cookie）**，打開 Console 檢查，果然跟她描述的一模一樣——`dataLayer` 裡只有手動 push 的 `cta_click`、`google_tag_manager` 是 `undefined`。但這正是預期行為：`components/GtmLoader.tsx` 的設計是「使用者點擊落地頁同意橫幅的『我同意』之前，完全不注入 GTM 容器腳本」，這是 8/4 就定案、對照交接文件隱私規範刻意做的節流機制，不是這次新出現的問題。
+
+接著在同一個分頁裡實際點下「我同意」按鈕，馬上重新檢查：`google_tag_manager` 變成一個正常物件、`dataLayer` 裡出現 `gtm.js`／`gtm.dom`／`gtm.load` 三個事件、頁面上也多了一個 Facebook Pixel 的 `noscript` 追蹤標籤（`_fbp` cookie 也正確寫入），容器 ID 確認是正確的 `GTM-M6P5QTRM`，沒有打錯字或誤植其他網站 ID。這證明 GTM 容器本身的安裝完全正常，Lindy 檢查時應該是還沒點過同意橫幅就直接開 Console 看，才會得到「沒有載入」的結果——這次沒有動任何程式碼，純粹是查證後確認現況符合設計。
+
+**同步更新：** README「內容管理：Hero Banner／活動資訊」小節補充 Banner 取代 Hero 的機制說明、專案進度追蹤表新增一列，「待確認事項」新增一項記錄 GTM 查證結果（已確認非 bug，附上實測證據，方便你直接轉貼回覆 Lindy）。這次 Banner 修正是 bug fix，沒有走完整 OpenSpec 流程（規格本身沒有變，只是把實作補回去符合原本已核准的規格）；GTM 部分則完全沒有程式碼異動，純查證。
