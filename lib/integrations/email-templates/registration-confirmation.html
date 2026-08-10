@@ -59,37 +59,17 @@
 
           <!-- ===== HERO (light) ===== -->
           <!-- 2026/08/10: replaced the coded eyebrow/title/date/chips markup
-               with the actual banner graphic (same file already used as the
-               landing page's hero-banner image) - it already has all that
-               text baked in, so keeping the coded version too would just
-               duplicate it, same issue as the landing page hero/banner
-               overlap fixed the same day. -->
+               with the actual banner graphic (email-only asset, distinct
+               from the landing page's own hero-banner image - do not point
+               this at /admin/banner's uploads). This later version of the
+               graphic (2026/08/10, same day) has the "報名成功" success badge
+               baked into the image itself, so the separately-coded badge
+               table that used to sit below the image was removed - keeping
+               both would have duplicated it, same class of issue as the
+               landing page hero/banner overlap fixed earlier the same day. -->
           <tr>
             <td style="border-radius:22px 22px 0 0; overflow:hidden; background-color:#EAF1EC; border:1px solid rgba(20,60,40,.10); border-bottom:none;">
-              <img src="{{ASSET_BASE_URL}}/email-assets/hero-banner.jpg" width="600" alt="Agatha Forum 2026 · 製造業 AI 商用實戰論壇 · 09.15 13:30-16:30" style="display:block; width:100%; max-width:600px; height:auto;">
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td align="center" style="padding:26px 0 32px;">
-                    <!-- success badge. Uses U+2713 (plain text-style check
-                         mark), not U+2714 (the "heavy" check mark this
-                         started as) - U+2714 defaults to emoji-style
-                         rendering in several mail clients, which showed up
-                         full-size on its own line above the "報名成功" text
-                         instead of sitting inline with it (reported
-                         2026/08/10). line-height + white-space:nowrap pin it
-                         to one line regardless of glyph metrics. -->
-                    <table role="presentation" cellpadding="0" cellspacing="0">
-                      <tr>
-                        <td style="border-radius:999px; background:#0CC26E; background-image:linear-gradient(135deg,#0CC26E,#09A25B); box-shadow:0 10px 26px rgba(9,162,91,.35);">
-                          <span class="cjk" style="display:inline-block; padding:14px 30px; font-family:'Noto Sans TC',sans-serif; font-weight:700; font-size:16px; line-height:16px; color:#ffffff; white-space:nowrap;">
-                            &#10003;&nbsp;&nbsp;報名成功
-                          </span>
-                        </td>
-                      </tr>
-                    </table>
-                  </td>
-                </tr>
-              </table>
+              <img src="{{ASSET_BASE_URL}}/email-assets/hero-banner.jpg" width="600" alt="Emergence Day 2026 · 製造業 AI 商用實戰論壇 · 09.15 13:30-16:30 · 報名成功" style="display:block; width:100%; max-width:600px; height:auto;">
             </td>
           </tr>
 
