@@ -18,7 +18,8 @@
     "seed:partners": "tsx prisma/seed-partners.ts",
     "seed:highlights": "tsx prisma/seed-highlights.ts",
     "seed:form-options": "tsx prisma/seed-form-options.ts",
-    "seed:event-info": "tsx prisma/seed-event-info.ts"
+    "seed:event-info": "tsx prisma/seed-event-info.ts",
+    "seed:intro-copy": "tsx prisma/seed-intro-copy.ts"
   },
   "dependencies": {
     "@libsql/client": "^0.17.4",

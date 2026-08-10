@@ -239,3 +239,19 @@ model EventInfo {
   subText   String?
   updatedAt DateTime       @updatedAt
 }
+
+// CTO/PR-editable landing-page intro copy (openspec: add-intro-copy-cms).
+// Fixed-slot, same reasoning as EventInfo above: exactly these 2 blocks,
+// never more or fewer. `body` supports a tiny **bold** markup subset only
+// (see lib/render-bold.tsx) - not a general Markdown parser.
+enum IntroCopyField {
+  LEAD
+  ATTENDEE
+}
+
+model IntroCopy {
+  id        String         @id @default(uuid())
+  field     IntroCopyField @unique
+  body      String
+  updatedAt DateTime       @updatedAt
+}

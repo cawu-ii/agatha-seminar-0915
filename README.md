@@ -87,7 +87,7 @@ Next.js（App Router + TypeScript）全端專案：
 | **講者照片／夥伴 Logo 改為檔案上傳；夥伴拆分主辦／協辦單位** | 2026/08/06 QA（Lindy）測試回報：講者、夥伴需要真正的檔案上傳（不再貼網址）；夥伴需拆分「主辦單位」（今晧實業、湧現智庫）與「協辦單位」，落地頁對應拆成兩個區塊 | ✅ **已實作並驗證**（[`add-speaker-partner-upload`](openspec/changes/archive/2026-08-07-add-speaker-partner-upload/)，見上方「內容管理」） |
 | **公關帳號開放整批匯出 Excel 權限** | 2026/08/07 直接指示：放寬 v3 §6.9「全量含個資之名單匯出由我方控管後再提供」的限制，公關需要直接匯出給報名公司，經確認後刻意反轉原本 CTO 限定的設計 | ✅ **已實作並驗證**（[`open-export-to-pr-role`](openspec/changes/archive/2026-08-07-open-export-to-pr-role/)，見下方「名單匯出」） |
 
-**目前狀態：議程管理、個別帳號、Excel 匯出、講者／夥伴／亮點 CMS、表單選項清單 CMS、Banner 上傳／活動資訊 CMS、講者夥伴檔案上傳與夥伴分類、公關匯出權限放寬 九項已完成並歸檔；新子網域部署尚未動工**，避免一次把不相關的能力全部混進同一個 change。
+**目前狀態：議程管理、個別帳號、Excel 匯出、講者／夥伴／亮點 CMS、表單選項清單 CMS、Banner 上傳／活動資訊 CMS、講者夥伴檔案上傳與夥伴分類、公關匯出權限放寬、落地頁內文 CMS 十項已完成並歸檔；新子網域部署尚未動工**，避免一次把不相關的能力全部混進同一個 change。
 
 ## 角色與分工
 
@@ -161,7 +161,7 @@ seminar_apply/
 │  │  └─ thanks/page.tsx                       # 🔵 感謝頁
 │  ├─ admin/
 │  │  ├─ page.tsx                              # 🔵 後台列表頁（依角色顯示帳號管理／匯出按鈕）
-│  │  ├─ agenda/page.tsx · speakers/page.tsx · partners/page.tsx · highlights/page.tsx · form-options/page.tsx · banner/page.tsx · event-info/page.tsx  # 🔵 內容管理，CTO／PR 皆可用
+│  │  ├─ agenda/page.tsx · speakers/page.tsx · partners/page.tsx · highlights/page.tsx · form-options/page.tsx · banner/page.tsx · event-info/page.tsx · intro-copy/page.tsx  # 🔵 內容管理，CTO／PR 皆可用
 │  │  ├─ accounts/page.tsx                     # 🔵 帳號管理頁（CTO 專屬，頁面層 redirect 防 PR 直接進入）
 │  │  └─ login/page.tsx                        # 🔵 後台登入頁（email + 密碼）
 │  └─ api/
@@ -175,25 +175,30 @@ seminar_apply/
 │        ├─ form-options/route.ts · form-options/[field]/route.ts（+ [id]/route.ts + [id]/move/route.ts）  # 🔵 7 個表單欄位共用同一組 CRUD
 │        ├─ banner/route.ts                     # 🔵 GET 目前 Banner／POST 上傳（桌機／手機分開，含尺寸校驗）
 │        ├─ event-info/route.ts · event-info/[field]/route.ts  # 🔵 GET 四張卡片／PATCH 單張（無 POST/DELETE，固定 4 格）
+│        ├─ intro-copy/route.ts · intro-copy/[field]/route.ts  # 🔵 GET 兩段內文／PATCH 單段（無 POST/DELETE，固定 2 格）
+│        ├─ registrations/[id]/archive/route.ts # 🔵 CTO-only：PATCH 封存／取消封存單筆報名（無 delete）
 │        ├─ accounts/route.ts · accounts/[id]/route.ts  # 🔵 CTO-only：帳號列表／新增／停用／重設密碼
 │        └─ export/route.ts                     # session 驗證（2026/08/07 起 CTO／PR 皆可用），寫入稽核紀錄
-├─ components/                                 # RegistrationForm, ConsentBanner, GtmLoader, AdminTable, AgendaTable, SpeakerTable, PartnerTable, HighlightTable, FormOptionsTable, PartnerWall, AccountsTable, AddToCalendar, BannerUploader, EventInfoTable...
+├─ components/                                 # RegistrationForm, ConsentBanner, GtmLoader, AdminTable, AgendaTable, SpeakerTable, PartnerTable, HighlightTable, FormOptionsTable, PartnerWall, AccountsTable, AddToCalendar, BannerUploader, EventInfoTable, IntroCopyTable...
 ├─ lib/
 │  ├─ prisma.ts · session.ts · auth.ts · gtm.ts · utm.ts
 │  ├─ export-workbook.ts                        # `.xlsx` 產生邏輯，CLI 腳本與兩支匯出 API 共用
 │  ├─ form-options.ts                           # 選項清單種子資料來源（不再被表單／驗證 schema 於執行期讀取）
 │  ├─ form-options-db.ts                        # 從 FormOption 資料表查詢並依欄位分組，供落地頁與報名 API 共用
 │  ├─ registration-schema.ts                    # `buildRegistrationSchema(options)`，改為依當下選項清單動態建立
-│  └─ integrations/                             # 🟠🩷🟣 email.ts · meta-capi.ts · ragic.ts（無憑證即 no-op + log）
+│  ├─ render-bold.tsx                           # 🔵 `**bold**` 簡易標記語法解析，供落地頁內文渲染用
+│  └─ integrations/                             # 🟠🩷🟣 email.ts · meta-capi.ts · ragic.ts（無憑證即 no-op + log）；email-templates/ 為確認信 HTML 版型
 ├─ prisma/
-│  ├─ schema.prisma                             # Registration、AgendaItem、AdminAccount、AdminAuditLog、Speaker、Partner（含 PartnerCategory: HOST/COORGANIZER）、Highlight、FormOption、Banner、EventInfo model
-│  ├─ seed-agenda.ts · seed-speakers.ts · seed-partners.ts · seed-highlights.ts · seed-form-options.ts · seed-event-info.ts  # 內容種子資料，各自對應一個 npm script，只需手動跑一次（Banner 無種子，起始為空）
+│  ├─ schema.prisma                             # Registration（含 archived）、AgendaItem、AdminAccount、AdminAuditLog、Speaker、Partner（含 PartnerCategory: HOST/COORGANIZER）、Highlight、FormOption、Banner、EventInfo、IntroCopy model
+│  ├─ seed-agenda.ts · seed-speakers.ts · seed-partners.ts · seed-highlights.ts · seed-form-options.ts · seed-event-info.ts · seed-intro-copy.ts  # 內容種子資料，各自對應一個 npm script，只需手動跑一次（Banner 無種子，起始為空）
 │  └─ seed-admin.ts                             # 建立第一個 CTO 帳號（`npm run seed:admin`，全新環境必跑）
 ├─ scripts/export-registrations.ts              # 🔵 CTO 專用匯出腳本，輸出 .xlsx
+├─ scripts/archive-test-registrations.ts        # 🔵 CTO 專用：CLI 封存正式站測試報名資料（預覽優先，需 --confirm 才寫入）
 ├─ middleware.ts                                # 保護 /admin、/api/admin
 ├─ public/uploads/banner/                       # Banner 上傳圖片實際存放位置，本機磁碟，已列入 .gitignore（非原始碼，不進版控）
+├─ public/email-assets/                         # 確認信 HTML 版型用的圖片資源，進版控（非使用者上傳內容）
 ├─ openspec/
-│  ├─ specs/                                    # 現行 capability spec 單一真相（含 agenda-management、speakers-cms、partners-cms、highlights-cms、form-options-cms、banner-cms、event-info-cms）
+│  ├─ specs/                                    # 現行 capability spec 單一真相（含 agenda-management、speakers-cms、partners-cms、highlights-cms、form-options-cms、banner-cms、event-info-cms、intro-copy-cms）
 │  └─ changes/archive/                          # 已完成並歸檔之 change（含完整 proposal/design/specs/tasks 紀錄）
 ├─ qa/test-log-2026-08-04.md                    # 獨立 QA 測試紀錄
 ├─ .env / .env.example
@@ -312,6 +317,14 @@ Lindy 提供了一份設計好的 HTML 版型（原始檔另外交付，未進�
 - **換圖即刪除舊檔**：重新上傳同一個插槽（桌機或手機）會立即刪除硬碟上的舊檔案，不保留版本紀錄，避免磁碟無限累積。
 - **後台不提供預覽功能**：上傳成功後請直接開啟落地頁確認顯示效果，這是刻意精簡的決策，不是遺漏。
 - **活動資訊管理**：日期／時間／地點／費用四張卡片，各自可編輯主要內容／第二行（僅地點使用）／小字內容三個欄位，儲存後落地頁下次載入即反映；**固定 4 張卡片，無新增／刪除功能**——對應活動本身只有這 4 類資訊，不是清單型內容。
+
+### 內容管理：落地頁內文（`/admin/intro-copy`）
+
+2026/08/10 公關新需求，對照文件 v3 §6.2 同一類「CTO／PR 皆可操作、CTO 不用介入」的內容管理精神，開放編輯 Hero 下方的兩段介紹文字（[`openspec/changes/archive/2026-08-10-add-intro-copy-cms/`](openspec/changes/archive/2026-08-10-add-intro-copy-cms/)）：
+
+- 可編輯**介紹段落**（「當 Agentic AI 進入應用爆發期...」那一段）與**「適合對象」區塊內文**（「Who should attend」下方那段），儲存後落地頁下次載入即反映；**固定 2 個區塊，無新增／刪除功能**——跟活動資訊四張卡片同一種「固定欄位」設計，不是清單型內容。
+- **「Who should attend」這個英文小標籤本身維持固定，不開放編輯**——跟頁面上其他區塊小標籤（Highlights／Speakers／Agenda）待遇一致，這幾個目前都不屬於任何後台管理範圍（已與你確認，2026/08/10）。
+- **「適合對象」內文支援簡易粗體語法**：輸入時用 `**文字**` 包住想要加粗的部分（例如 `**製造業經營者**`），落地頁會自動轉換成粗體顯示；這不是完整的富文本編輯器，只認得這一種語法，其他符號（例如打錯只打一半的 `**`）會直接照樣顯示成星號，不會被吃掉或誤判（已與你確認，2026/08/10）。介紹段落欄位目前沒有粗體需求，是純文字欄位。
 
 ### 內容管理：報名表單選項清單（`/admin/form-options`）
 
@@ -490,4 +503,5 @@ SQLite 是單一檔案（`prisma/dev.db`），寫入的資料就存在「跑這�
 | 報名確認信改用 HTML 版型＋收件人姓名動態代入 | `done` | 2026/08/07：Lindy 希望確認信更好看，提供設計好的 HTML 版型；你也指出信中「框起來」的收件人姓名不可寫死，須依實際報名人變化。新增 [`lib/integrations/email-templates/registration-confirmation.html`](lib/integrations/email-templates/registration-confirmation.html)（Lindy 原始設計檔，僅把姓名行換成 `{{REGISTRANT_NAME}}` 佔位字串），寄信時讀取版型並代入該筆報名的實際姓名（**HTML escape 過**，防止姓名欄位內容破壞信件排版或造成注入），Resend／Gmail SMTP 兩條路徑皆已改帶 `html` 欄位，並保留純文字版作為 fallback。**第一版實際寄出後你回報收信變成一整串 HTML 原始碼**——查出是版型裡內嵌的一張 base64 圖片（約 38 萬字元、僅一行）在傳輸過程中被中繼郵件伺服器插入不該有的換行、打斷了 HTML 屬性引號配對；已改為把圖片還原成真正的 PNG 檔案（`public/email-assets/hero-bg.png`）並用外部網址引用，整封信從約 400KB 降到約 16KB，重新驗證單行最長字元數已遠低於容易觸發此問題的門檻 |
 | 確認信 Hero 圖片改用真實 banner 設計稿（email 專用版本） | `done` | 2026/08/10 分兩階段：先把確認信裡原本抽象裝飾圖＋寫死文字的 Hero 改成落地頁 banner 圖檔取代（同一天稍早落地頁「兩塊 banner」問題的同類修法），「報名成功」徽章當時仍另外用程式碼畫；同一天稍晚 Lindy 提供把徽章也畫進圖片本身的新版設計稿，改用這份 **email 專屬**圖檔（不再跟落地頁 banner 共用同一份檔案），程式碼裡另外畫徽章的區塊整段移除，原本徽章勾勾符號在 Gmail 等信箱跑版的問題隨之消失（沒有程式碼畫的勾勾了）。已用本機渲染＋瀏覽器驗證圖片正確載入、無重複徽章 |
 | Banner／Hero 區塊重複顯示（bug 修復） | `done` | 2026/08/10 Lindy 回報上傳新 banner 後畫面出現「兩塊 banner」；查出是實作沒有依照已核准的 `banner-cms` spec（該 spec 明確寫「以圖片取代原本的 CSS Hero」）——程式碼原本不論有沒有上傳圖片都一律顯示寫死的 Hero 內容，跟新上傳的圖片同時疊在畫面上。修正為：桌機／手機兩張圖都上傳完成後才隱藏寫死的 Hero 內容；只上傳一張時仍保留 Hero 內容顯示，避免另一裝置寬度看到空白。已用本機資料庫分別模擬「兩張都上傳」「只上傳一張」「都沒上傳」三種狀態驗證，並確認導覽列與右下角浮動的報名按鈕不受影響、仍可正常導向報名區塊 |
+| 落地頁內文 CMS（`/admin/intro-copy`，[`openspec/changes/archive/2026-08-10-add-intro-copy-cms/`](openspec/changes/archive/2026-08-10-add-intro-copy-cms/)） | `done` | 2026/08/10 公關新需求；Hero 下方「介紹段落」與「適合對象」兩段內文改為 CTO／PR 可從後台編輯，固定 2 個區塊無新增／刪除；「適合對象」支援 `**粗體**` 簡易語法（已與你確認），「Who should attend」小標籤維持固定不開放編輯（已與你確認）。已用真實 API 呼叫驗證 CTO／PR 編輯成功、未登入被拒、無效欄位名稱與空白內容皆正確擋下、未配對的 `**` 顯示為純文字不誤判、資料庫查無資料時落地頁 fallback 回原文不崩潰 |
 | 新子網域部署 | `open` | 已記錄於「交接文件 v3 更新對照」，純部署/DNS 層級，非工程範圍 |

@@ -35,6 +35,9 @@ export default async function AdminPage() {
           <a className="btn btn--ghost" href="/admin/event-info">
             管理活動資訊
           </a>
+          <a className="btn btn--ghost" href="/admin/intro-copy">
+            管理內文
+          </a>
           <a className="btn btn--primary" href="/api/admin/export">
             匯出 Excel
           </a>

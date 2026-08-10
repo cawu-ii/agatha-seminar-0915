@@ -6,7 +6,18 @@ import { PartnerWall } from "@/components/PartnerWall";
 import { RegistrationForm } from "@/components/RegistrationForm";
 import { prisma } from "@/lib/prisma";
 import { loadFormOptions } from "@/lib/form-options-db";
+import { renderWithBold } from "@/lib/render-bold";
 import type { FormOptionsByField } from "@/lib/registration-schema";
+import { IntroCopyField } from "@prisma/client";
+
+// Fallback if a row is missing/query fails (openspec: add-intro-copy-cms) -
+// today's approved wording, identical to what prisma/seed-intro-copy.ts
+// seeds, so the page never shows blank/broken copy.
+const INTRO_COPY_FALLBACK: Record<IntroCopyField, string> = {
+  LEAD: "當 Agentic AI 進入應用爆發期，真正的關鍵不在「用了多少 AI」，而在能不能把 AI 嵌進企業既有的產、銷、人、發、財流程，讓它可用、可控、可治理。Agatha 以雲地整合與治理為底層，協助製造業把單點試用，變成全員可用、可被交付與衡量的日常戰力——讓 AI 真正驅動生產力與 ROI，落在營運成果上。",
+  ATTENDEE:
+    "專為**製造業經營者、IT 與營運決策者**量身打造。9/15，一次看懂「可使用、可管控、可治理」的代理式 AI，如何成為驅動企業生產力的智慧戰略中心。",
+};
 
 // Agenda is DB-backed and PR-editable (openspec: add-agenda-management) - the
 // page must be rendered per-request, not statically at build time, or admin
@@ -46,6 +57,13 @@ export default async function SeminarLandingPage() {
   const hasFullBanner = Boolean(banner?.desktopUrl && banner?.mobileUrl);
   const eventInfoFacts = await prisma.eventInfo.findMany().catch(() => []);
   const eventInfoByField = Object.fromEntries(eventInfoFacts.map((f) => [f.field, f]));
+  // Intro lead paragraph + "Who should attend" callout body, PR-editable via
+  // /admin/intro-copy (openspec: add-intro-copy-cms), same fail-safe pattern
+  // as the queries above.
+  const introCopyRows = await prisma.introCopy.findMany().catch(() => []);
+  const introCopyByField = Object.fromEntries(introCopyRows.map((r) => [r.field, r.body]));
+  const introLead = introCopyByField[IntroCopyField.LEAD] ?? INTRO_COPY_FALLBACK.LEAD;
+  const introAttendee = introCopyByField[IntroCopyField.ATTENDEE] ?? INTRO_COPY_FALLBACK.ATTENDEE;
 
   return (
     <>
@@ -199,18 +217,10 @@ export default async function SeminarLandingPage() {
 
       <section className="sec" style={{ paddingTop: 8 }}>
         <div className="wrap ta">
-          <p className="ta__lead reveal">
-            當 Agentic AI 進入應用爆發期，真正的關鍵不在「用了多少 AI」，而在能不能把 AI
-            嵌進企業既有的產、銷、人、發、財流程，讓它可用、可控、可治理。Agatha
-            以雲地整合與治理為底層，協助製造業把單點試用，變成全員可用、可被交付與衡量的日常戰力——讓 AI
-            真正驅動生產力與 ROI，落在營運成果上。
-          </p>
+          <p className="ta__lead reveal">{renderWithBold(introLead)}</p>
           <div className="glass ta__box reveal">
             <p className="en">Who should attend</p>
-            <p>
-              專為<strong>製造業經營者、IT 與營運決策者</strong>量身打造。9/15，一次看懂「可使用、可管控、可治理」的代理式
-              AI，如何成為驅動企業生產力的智慧戰略中心。
-            </p>
+            <p>{renderWithBold(introAttendee)}</p>
           </div>
         </div>
       </section>
