@@ -717,3 +717,15 @@
 接著在同一個分頁裡實際點下「我同意」按鈕，馬上重新檢查：`google_tag_manager` 變成一個正常物件、`dataLayer` 裡出現 `gtm.js`／`gtm.dom`／`gtm.load` 三個事件、頁面上也多了一個 Facebook Pixel 的 `noscript` 追蹤標籤（`_fbp` cookie 也正確寫入），容器 ID 確認是正確的 `GTM-M6P5QTRM`，沒有打錯字或誤植其他網站 ID。這證明 GTM 容器本身的安裝完全正常，Lindy 檢查時應該是還沒點過同意橫幅就直接開 Console 看，才會得到「沒有載入」的結果——這次沒有動任何程式碼，純粹是查證後確認現況符合設計。
 
 **同步更新：** README「內容管理：Hero Banner／活動資訊」小節補充 Banner 取代 Hero 的機制說明、專案進度追蹤表新增一列，「待確認事項」新增一項記錄 GTM 查證結果（已確認非 bug，附上實測證據，方便你直接轉貼回覆 Lindy）。這次 Banner 修正是 bug fix，沒有走完整 OpenSpec 流程（規格本身沒有變，只是把實作補回去符合原本已核准的規格）；GTM 部分則完全沒有程式碼異動，純查證。
+
+## Phase 42 — Banner 底下文字貼太緊，補回間距（2026-08-10）
+
+**起因：** Phase 41 的 Banner／Hero 重複顯示修好、部署上線後，你截圖回報 banner 顯示正常了，但緊接在下面的介紹文字（「當 Agentic AI 進入應用爆發期...」那段）貼著 banner 下緣，希望能空一點。
+
+**原因：** `.hero-banner{width:100%;line-height:0}` 這個圖片區塊本身沒有任何底部間距（`line-height:0` 是為了讓圖片緊貼、不留下瀏覽器預設的行內元素縫隙），下面緊接著的介紹文字區塊只有 `padding-top:8px`（這個 8px 是當初設計來搭配「寫死的 Hero 區塊」用的——舊版 Hero 本身 `padding-bottom` 就有將近 70px，8px 只是補一點點零頭湊到跟其他區塊一致的 80px 節奏）。Phase 41 把 Hero 換成 Banner 之後，那將近 70px 的間距來源就這樣憑空消失了，只剩下單薄的 8px，才會看起來整個貼在一起。
+
+**修正：** 在 `app/globals.css` 幫 `.hero-banner` 補上 `margin-bottom:56px`，讓 banner 圖片下緣到下一段內容之間恢復有像樣的呼吸空間（實測 banner 底部到文字頂部總共約 82px，接近全站其他區塊間慣用的 80px 節奏）。因為這個間距是掛在 `.hero-banner` 這個 class 本身，不是掛在後面接的區塊上，所以不管 banner 後面接的是「純文字介紹段落」（兩張圖都上傳完成的情況）還是「重複顯示的 Hero」（只上傳一張圖的過渡狀態），都會自動套用，不需要另外判斷。沒上傳 banner 時 `.hero-banner` 這個區塊整個不會出現在畫面上，這個間距也就不會產生任何影響。
+
+**驗證方式：** 本機資料庫填入假 banner 資料模擬「兩張都上傳完成」的狀態，量測 banner 下緣到下一段文字之間的實際距離，確認新的間距生效；`npm run build` 通過；驗證用的假資料驗證完清除。
+
+**同步更新：** 這次是單一 CSS 屬性的小修正，沒有異動 README 或另外開 OpenSpec change。
