@@ -21,17 +21,6 @@ The system SHALL read `utm_source`, `utm_medium`, `utm_campaign`, and `utm_conte
 - **WHEN** the page loads with no query string
 - **THEN** the form submission proceeds with empty/absent UTM fields, without blocking submission
 
-### Requirement: Marketing tracking requires consent before loading
-The system SHALL display a consent banner before any marketing-tracking script (GTM container) is injected into the page, and SHALL NOT inject that script until the visitor accepts.
-
-#### Scenario: First visit, no prior consent
-- **WHEN** a visitor loads the page for the first time
-- **THEN** the consent banner is shown and no GTM script tag is present in the page
-
-#### Scenario: Visitor accepts tracking
-- **WHEN** the visitor clicks accept on the consent banner
-- **THEN** the GTM script is injected and the banner is dismissed for the remainder of the session
-
 ### Requirement: Page-level and CTA events are emitted
 The system SHALL push a `lp_view` event to the dataLayer when the page finishes loading (after consent) and a `cta_click` event when the primary "立即報名" call-to-action is clicked.
 
@@ -49,4 +38,20 @@ The system SHALL submit the registration form via a POST request to the registra
 #### Scenario: Valid submission
 - **WHEN** all required fields pass client-side validation and the visitor submits the form
 - **THEN** the browser sends a POST request carrying the form fields, UTM values, and an idempotency key to the registration API, and does not reveal a success state until the API responds
+
+### Requirement: Marketing tracking is preceded by a dismissible notice
+
+The system SHALL display a one-time dismissible notice about marketing-tracking scripts (GTM container) on first visit. The notice SHALL NOT gate whether the GTM script is injected - injection happens unconditionally on page load, independent of whether the visitor has seen or dismissed the notice.
+
+#### Scenario: First visit, notice not yet dismissed
+- **WHEN** a visitor loads the page for the first time
+- **THEN** the notice is shown, and the GTM script tag is present in the page regardless
+
+#### Scenario: Visitor dismisses the notice
+- **WHEN** the visitor clicks the notice's single acknowledgment button
+- **THEN** the notice is dismissed for the remainder of the session (and future visits, via a cookie) and does not reappear; this has no effect on whether GTM is loaded, which was already loaded before the click
+
+#### Scenario: Returning visitor who already dismissed the notice
+- **WHEN** a visitor who previously dismissed the notice loads the page again
+- **THEN** the notice does not reappear, and GTM loads unconditionally as on any other page load
 

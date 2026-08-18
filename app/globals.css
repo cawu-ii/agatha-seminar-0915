@@ -365,11 +365,14 @@ body::after{opacity:.5;background:repeating-linear-gradient(-30deg, transparent 
 
 /* ===== Added for the registration system build (not in original static design) ===== */
 
-/* Consent banner */
-.consentbar{position:fixed;left:0;right:0;bottom:0;z-index:90;padding:16px 20px;display:flex;gap:16px;flex-wrap:wrap;align-items:center;justify-content:space-between}
-.consentbar__text{font-size:13px;color:var(--muted);max-width:640px}
+/* Consent banner - notice-only, single button (openspec:
+   make-consent-banner-notice-only, 2026/08/10). The acknowledgment button is
+   deliberately larger/higher-contrast than the old two-button bar - reported
+   as too easy to overlook/ignore. */
+.consentbar{position:fixed;left:0;right:0;bottom:0;z-index:90;padding:18px 20px;display:flex;gap:16px;flex-wrap:wrap;align-items:center;justify-content:space-between;box-shadow:0 -8px 28px rgba(20,60,40,.14)}
+.consentbar__text{font-size:13.5px;color:var(--muted);max-width:640px}
 .consentbar__actions{display:flex;gap:10px;flex-wrap:wrap}
-.consentbar .btn{padding:10px 20px;font-size:13.5px}
+.consentbar__ack{padding:14px 32px;font-size:15px;font-weight:700;box-shadow:0 8px 20px rgba(9,162,91,.35)}
 
 /* Thank-you page */
 .thanks{max-width:640px;margin:60px auto;padding:70px 0}

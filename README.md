@@ -87,7 +87,7 @@ Next.js（App Router + TypeScript）全端專案：
 | **講者照片／夥伴 Logo 改為檔案上傳；夥伴拆分主辦／協辦單位** | 2026/08/06 QA（Lindy）測試回報：講者、夥伴需要真正的檔案上傳（不再貼網址）；夥伴需拆分「主辦單位」（今晧實業、湧現智庫）與「協辦單位」，落地頁對應拆成兩個區塊 | ✅ **已實作並驗證**（[`add-speaker-partner-upload`](openspec/changes/archive/2026-08-07-add-speaker-partner-upload/)，見上方「內容管理」） |
 | **公關帳號開放整批匯出 Excel 權限** | 2026/08/07 直接指示：放寬 v3 §6.9「全量含個資之名單匯出由我方控管後再提供」的限制，公關需要直接匯出給報名公司，經確認後刻意反轉原本 CTO 限定的設計 | ✅ **已實作並驗證**（[`open-export-to-pr-role`](openspec/changes/archive/2026-08-07-open-export-to-pr-role/)，見下方「名單匯出」） |
 
-**目前狀態：議程管理、個別帳號、Excel 匯出、講者／夥伴／亮點 CMS、表單選項清單 CMS、Banner 上傳／活動資訊 CMS、講者夥伴檔案上傳與夥伴分類、公關匯出權限放寬、落地頁內文 CMS 十項已完成並歸檔；新子網域部署尚未動工**，避免一次把不相關的能力全部混進同一個 change。
+**目前狀態：議程管理、個別帳號、Excel 匯出、講者／夥伴／亮點 CMS、表單選項清單 CMS、Banner 上傳／活動資訊 CMS、講者夥伴檔案上傳與夥伴分類、公關匯出權限放寬、落地頁內文 CMS、同意橫幅改通知型 十一項已完成並歸檔；新子網域部署尚未動工**，避免一次把不相關的能力全部混進同一個 change。
 
 ## 角色與分工
 
@@ -135,7 +135,7 @@ flowchart TD
 
 | 事件 | 誰觸發 | 用途 |
 |---|---|---|
-| `lp_view` | 本專案程式碼（`LpViewTracker`），同意橫幅接受後推送一次 | 落地頁瀏覽 |
+| `lp_view` | 本專案程式碼（`LpViewTracker`），頁面載入後立即推送一次（**2026/08/10 起不再等同意橫幅**，見下方說明） | 落地頁瀏覽 |
 | `cta_click` | 本專案程式碼（`CtaLink`） | 點擊「立即報名」按鈕，微轉換訊號 |
 | `page_view` | GTM 內建（All Pages Trigger），非本專案程式碼推送 | GA4 基本瀏覽事件 |
 | `generate_lead` | **鼎東**於 GTM／GA4 後台設定（Trigger：`page_view`，Page Location 包含 `/seminar/0915/thanks`） | GA4 Key Event，本次活動報名轉換／UTM 成效分析依據 |
@@ -144,6 +144,19 @@ flowchart TD
 **這次交接文件更新（0804 → 0805/0806）的關鍵變化**：原本規劃由本專案程式碼在報名成功後推送一個自訂的 `registration_submit` 事件作為 GA4 主轉換依據；0805 版文件明確改為「本次不另外建立 `registration_submit` 事件，GA4 以 `generate_lead` 作為正式報名完成事件」，且 `generate_lead`／Meta `Lead` 都改成鼎東在 GTM／GA4 後台直接設定「網址比對」的 Trigger，不需要本專案程式碼推送任何轉換事件。對應的 `ThanksTracker` 元件與 `registration_submit` 事件型別已移除（見 [`openspec/changes/archive/2026-08-06-update-tracking-integration/`](openspec/changes/archive/2026-08-06-update-tracking-integration/)）。
 
 程式碼這邊唯一要保證的是：感謝頁網址維持 `/seminar/0915/thanks` 不變（本就如此），讓鼎東設定的 Trigger 能比對得到；`event_id` 仍會透過 `?eid=` 帶到感謝頁網址上（不含個資），供鼎東設定的 Meta Pixel 標籤與後端 Meta CAPI 呼叫做去重比對。
+
+### 2026/08/10 起：同意橫幅改為「通知型」，GTM 不再等使用者按下同意
+
+原本 GTM 容器（及其內建的 GA4／Meta 追蹤）採**真正的選擇性同意機制**：使用者沒點下橫幅上的「我同意」之前，`GtmLoader.tsx` 完全不會注入 GTM 腳本，`lp_view` 也不會推送——這是對照交接文件隱私規範刻意做的設計，且已於 2026/08/10 上午實測確認運作正常（見下方待確認事項第 8 項）。
+
+同一天稍晚，公關公司（鼎東）回報 GA4／Meta 後台幾乎收不到資料——原因正是這個機制運作得太好：多數使用者由左至右點擊的習慣，加上橫幅提供「僅使用必要功能」這個看起來對等的拒絕選項，導致大部分訪客實際上是在拒絕追蹤，GTM 因此從未載入。與你確認（[`AskUserQuestion`](openspec/changes/archive/2026-08-10-make-consent-banner-notice-only/)，選項裡已明確列出「這會拿掉使用者真正拒絕追蹤的能力，建議先跟法遵／主管確認」的風險說明）後，**改成單一按鈕的「通知型」橫幅**：
+
+- GTM／`lp_view` 現在頁面載入時就無條件觸發，完全不受橫幅是否顯示、是否被點擊影響。
+- 橫幅只剩一個「我知道了」按鈕（拿掉「僅使用必要功能」——保留一個按下去其實什麼都不會拒絕的按鈕，本身就是一種誤導性設計，不留半吊子）。
+- 按鈕改成更醒目的樣式（字級 15px、字重 700、更大的內距、綠色陰影），對照 Lindy 提供的參考範例，避免使用者滑過去沒注意到。
+- `lib/gtm.ts` 的函式名稱同步從 `hasTrackingConsent`／`grantTrackingConsent` 改成 `hasNoticeBeenDismissed`／`dismissNotice`，避免程式碼名稱繼續暗示這裡還有真的在把關的同意機制。
+
+**這是刻意逆轉先前的隱私優先設計，法遵風險由你（CTO）在確認選項裡已知悉的情況下拍板決定，非工程單方面判斷**——完整脈絡與風險陳述記錄在 [`openspec/changes/archive/2026-08-10-make-consent-banner-notice-only/`](openspec/changes/archive/2026-08-10-make-consent-banner-notice-only/) 的 proposal.md／design.md。
 
 ---
 
@@ -415,7 +428,7 @@ SQLite 是單一檔案（`prisma/dev.db`），寫入的資料就存在「跑這�
 | 5 | UTM 落庫 | 帶 `utm_source=benchmark&utm_content=wave1` 送出後，後台正確顯示對應資料 ✅ |
 | 6 | 波次區隔 | 後台可依 `utm_content` 篩選（`wave1`／`wave2`／`edm1` 三筆來源皆正確區隔）✅ |
 | 9 | 後台權限 | 公關帳號可查看／篩選／標記／寄信；確認無刪除鍵、無整批匯出鍵 ✅ |
-| 10 | 合規性 | 同意橫幅優先顯示，勾選同意後始注入 GTM；`dataLayer` 事件僅攜帶 `event_id`／UTM，不含 email／phone ✅ |
+| 10 | 合規性 | ~~同意橫幅優先顯示，勾選同意後始注入 GTM~~——**2026/08/10 起已變更**：橫幅改為單純通知，不再是同意閘門，GTM 頁面載入即無條件注入，詳見上方「追蹤事件字典」小節說明；`dataLayer` 事件僅攜帶 `event_id`／UTM，不含 email／phone，此項不變 ✅ |
 | — | 冪等性 | 同一 `idempotencyKey` 送出兩次，僅產生一筆紀錄並回傳相同 `event_id` ✅ |
 | — | 匯出權限隔離 | PR 角色 session 呼叫 `/api/admin/export` 回傳 403；無 `EXPORT_TOKEN` 呼叫 `/api/export` 回傳 401；CTO 角色／正確權杖方能回傳 200 之 `.xlsx` 檔案 ✅ |
 | — | 個別帳號與稽核紀錄 | 停用帳號後無法再登入（401）；登入與匯出動作皆正確寫入 `AdminAuditLog` 並可追溯操作帳號 ✅ |
@@ -441,7 +454,7 @@ SQLite 是單一檔案（`prisma/dev.db`），寫入的資料就存在「跑這�
 5. ~~GTM／GA4 真實 ID 已提供（`GTM-M583KSV7`／`G-C2D5DC3DLS`）~~——**2026/08/06 下午最終定案**：0806 下午版交接文件確認 GTM 容器改由湧現內部（Lindy）自建 `GTM-M6P5QTRM`（取代上午暫緩的 `GTM-M583KSV7`），CTO 安裝範圍為 **Landing Page**（非全站），鼎東取得 Editor 權限、範圍限定 Meta／Digitimes；GA4 ID 仍為 `G-C2D5DC3DLS`。**待部署時填入 `.env` 的 `NEXT_PUBLIC_GTM_ID`**，本機 `.env` 目前仍為空值。
 6. **（2026/08/06 新增，已確認無需異動）主管指示確認信寄件人須為 `service@emergence.today`**——查核 `lib/integrations/email.ts` 與 `.env` 皆已使用此位址（`EMAIL_FROM` 預設值與現有設定一致），**程式碼與設定皆已符合，無需修改**。
 7. ~~公關公司是否應有 CMS 權限～與交接文件 §9 checklist「不提供公關公司 CMS 權限」是否衝突~~——**已確認（2026/08/06）**：「公司公關」（Lindy，湧現內部）與「公關公司」（鼎東，外部代理商）是兩個不同對象；PR 角色帳號（CMS 完整權限）僅提供給 Lindy，鼎東不持有本專案任何帳號，與 checklist 要求一致，**不衝突，無需調整權限程式碼**。
-8. ~~Lindy 回報 GTM 容器疑似安裝失敗（Console 檢查 `dataLayer` 沒有 `gtm.js` 事件、`google_tag_manager` 是 undefined）~~——**已查證（2026/08/10）：非程式碼問題，是同意橫幅的預期行為**。GTM 依設計採「先同意才載入」（`components/GtmLoader.tsx`），使用者尚未點擊落地頁的「我同意」按鈕之前，`dataLayer` 本來就只會有手動 push 的 `cta_click`，GTM 容器本身完全不會被注入——這是符合隱私規範故意做的節流，不是安裝失敗。直接在正式站實測：**點擊「我同意」之後，`google_tag_manager` 物件、`gtm.js`／`gtm.dom`／`gtm.load` 事件、Meta Pixel noscript 標籤全部正常出現**，容器 ID 正確為 `GTM-M6P5QTRM`。Lindy 用 Console 檢查時應是在尚未點擊同意的狀態下測試，才會看到「沒有載入」的結果；已請她之後測試前先點一次「我同意」再檢查。
+8. ~~Lindy 回報 GTM 容器疑似安裝失敗（Console 檢查 `dataLayer` 沒有 `gtm.js` 事件、`google_tag_manager` 是 undefined）~~——**已查證（2026/08/10 上午）：非程式碼問題，是同意橫幅的預期行為**。GTM 依設計採「先同意才載入」（`components/GtmLoader.tsx`），使用者尚未點擊落地頁的「我同意」按鈕之前，`dataLayer` 本來就只會有手動 push 的 `cta_click`，GTM 容器本身完全不會被注入——這是符合隱私規範故意做的節流，不是安裝失敗。直接在正式站實測：**點擊「我同意」之後，`google_tag_manager` 物件、`gtm.js`／`gtm.dom`／`gtm.load` 事件、Meta Pixel noscript 標籤全部正常出現**，容器 ID 正確為 `GTM-M6P5QTRM`。**後續發展（2026/08/10 下午）**：這個「運作正常」的節流機制本身變成了新問題——公關公司回報 GA4／Meta 後台幾乎收不到資料，因為多數訪客習慣直接點拒絕。已與你確認後改成通知型橫幅，GTM 現在無條件載入，詳見「追蹤事件字典」小節說明，此項後續發展已結案。
 
 ---
 
@@ -504,4 +517,5 @@ SQLite 是單一檔案（`prisma/dev.db`），寫入的資料就存在「跑這�
 | 確認信 Hero 圖片改用真實 banner 設計稿（email 專用版本） | `done` | 2026/08/10 分兩階段：先把確認信裡原本抽象裝飾圖＋寫死文字的 Hero 改成落地頁 banner 圖檔取代（同一天稍早落地頁「兩塊 banner」問題的同類修法），「報名成功」徽章當時仍另外用程式碼畫；同一天稍晚 Lindy 提供把徽章也畫進圖片本身的新版設計稿，改用這份 **email 專屬**圖檔（不再跟落地頁 banner 共用同一份檔案），程式碼裡另外畫徽章的區塊整段移除，原本徽章勾勾符號在 Gmail 等信箱跑版的問題隨之消失（沒有程式碼畫的勾勾了）。已用本機渲染＋瀏覽器驗證圖片正確載入、無重複徽章 |
 | Banner／Hero 區塊重複顯示（bug 修復） | `done` | 2026/08/10 Lindy 回報上傳新 banner 後畫面出現「兩塊 banner」；查出是實作沒有依照已核准的 `banner-cms` spec（該 spec 明確寫「以圖片取代原本的 CSS Hero」）——程式碼原本不論有沒有上傳圖片都一律顯示寫死的 Hero 內容，跟新上傳的圖片同時疊在畫面上。修正為：桌機／手機兩張圖都上傳完成後才隱藏寫死的 Hero 內容；只上傳一張時仍保留 Hero 內容顯示，避免另一裝置寬度看到空白。已用本機資料庫分別模擬「兩張都上傳」「只上傳一張」「都沒上傳」三種狀態驗證，並確認導覽列與右下角浮動的報名按鈕不受影響、仍可正常導向報名區塊 |
 | 落地頁內文 CMS（`/admin/intro-copy`，[`openspec/changes/archive/2026-08-10-add-intro-copy-cms/`](openspec/changes/archive/2026-08-10-add-intro-copy-cms/)） | `done` | 2026/08/10 公關新需求；Hero 下方「介紹段落」與「適合對象」兩段內文改為 CTO／PR 可從後台編輯，固定 2 個區塊無新增／刪除；「適合對象」支援 `**粗體**` 簡易語法（已與你確認），「Who should attend」小標籤維持固定不開放編輯（已與你確認）。已用真實 API 呼叫驗證 CTO／PR 編輯成功、未登入被拒、無效欄位名稱與空白內容皆正確擋下、未配對的 `**` 顯示為純文字不誤判、資料庫查無資料時落地頁 fallback 回原文不崩潰 |
+| 同意橫幅改為通知型，GTM 無條件載入（[`openspec/changes/archive/2026-08-10-make-consent-banner-notice-only/`](openspec/changes/archive/2026-08-10-make-consent-banner-notice-only/)） | `done` | 2026/08/10 公關公司回報 GA4／Meta 後台幾乎收不到資料，因多數訪客習慣拒絕原本的同意閘門；**刻意逆轉先前的隱私優先設計**，與你確認（`AskUserQuestion` 已明確列出法遵風險）後，橫幅改成單一「我知道了」按鈕的通知型設計，GTM／`lp_view` 皆改為頁面載入即無條件觸發，不再受橫幅影響；按鈕視覺加強避免被忽略。已用真正的 production build 驗證（過程中一度在 `npm run dev` 誤判 `lp_view` 遺失，查出是 React Strict Mode dev-only 的雙重執行副作用造成的偽陽性，非真實問題，已在真正的 production build 下確認 `gtm.js`／`lp_view`／`gtm.dom`／`gtm.load` 依序正確觸發） |
 | 新子網域部署 | `open` | 已記錄於「交接文件 v3 更新對照」，純部署/DNS 層級，非工程範圍 |

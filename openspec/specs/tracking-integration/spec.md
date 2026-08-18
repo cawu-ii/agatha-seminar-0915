@@ -4,15 +4,15 @@
 Wires GTM/GA4/Meta Pixel behind a single consent-gated container and a fixed event dictionary, so real tracking IDs can be dropped in via configuration without further code changes, and so absent IDs never break the site.
 ## Requirements
 ### Requirement: Tracking container is configuration-driven
-The system SHALL read the GTM container ID from configuration (environment variable) and SHALL NOT render the GTM script tag when that configuration is absent, instead of hardcoding or requiring a placeholder ID.
+The system SHALL read the GTM container ID from configuration (environment variable) and SHALL NOT render the GTM script tag when that configuration is absent, instead of hardcoding or requiring a placeholder ID. Injection no longer depends on visitor consent (see landing-page capability) - only on whether the GTM ID is configured.
 
 #### Scenario: No GTM ID configured
 - **WHEN** the GTM container ID environment variable is unset
 - **THEN** no GTM script is rendered anywhere on the site and the site otherwise functions normally
 
-#### Scenario: GTM ID configured and consent given
-- **WHEN** the GTM container ID is configured and the visitor has accepted the consent banner
-- **THEN** the GTM script is injected and dataLayer events reach it
+#### Scenario: GTM ID configured
+- **WHEN** the GTM container ID is configured and a visitor loads the page
+- **THEN** the GTM script is injected unconditionally and dataLayer events reach it, regardless of whether the visitor has dismissed the landing page's notice banner
 
 ### Requirement: Event dictionary is fixed and non-PII
 The system SHALL emit exactly two dataLayer event types — `lp_view` and `cta_click` — at the trigger points defined in the landing-page capability, and neither SHALL carry name, email, or phone as parameters. The GA4 Key Event (`generate_lead`) and the Meta Lead conversion event are NOT pushed by this system; they are configured externally in GTM/GA4 as a Trigger matching the thank-you page's URL (see the thank-you-page capability), owned and maintained by the PR agency's technical team, not by this codebase.

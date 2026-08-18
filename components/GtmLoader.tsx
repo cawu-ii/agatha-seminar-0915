@@ -1,10 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
-import { hasTrackingConsent } from "@/lib/gtm";
 
 const GTM_ID = process.env.NEXT_PUBLIC_GTM_ID;
-export const CONSENT_GRANTED_EVENT = "agatha:consent-granted";
 
 function injectGtm() {
   if (!GTM_ID) return; // no ID configured -> never render the script (tracking-integration spec)
@@ -20,13 +18,15 @@ function injectGtm() {
   document.body.prepend(noscript);
 }
 
-/** Injects GTM only once consent has been granted (cookie present or the accept event fires). No-op if NEXT_PUBLIC_GTM_ID is unset. */
+/**
+ * Injects GTM unconditionally on mount - no-op only if NEXT_PUBLIC_GTM_ID is
+ * unset. Used to wait for the consent banner's accept click (openspec:
+ * make-consent-banner-notice-only, 2026/08/10) - the banner is now a
+ * dismissible notice, not a gate, so injection no longer depends on it.
+ */
 export function GtmLoader() {
   useEffect(() => {
-    if (hasTrackingConsent()) injectGtm();
-    const onConsent = () => injectGtm();
-    window.addEventListener(CONSENT_GRANTED_EVENT, onConsent);
-    return () => window.removeEventListener(CONSENT_GRANTED_EVENT, onConsent);
+    injectGtm();
   }, []);
 
   return null;
